@@ -44,11 +44,8 @@ class GlobalFunctions {
     window.toggleChatSection = () => this.app.toggleChatSection();
     
     // Peek and restore functions
-    window.peekSidebar = (show) => this.app.peekSidebar(show);
     window.restoreSidebar = () => this.app.restoreSidebar();
-    window.peekUserSection = (show) => this.app.peekUserSection(show);
     window.restoreUserSection = () => this.app.restoreUserSection();
-    window.peekChatSection = (show) => this.app.peekChatSection(show);
     window.restoreChatSection = () => this.app.restoreChatSection();
     
     // Debug functions

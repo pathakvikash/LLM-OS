@@ -156,10 +156,8 @@ class UIManager {
 
     if (visible) {
       section.classList.remove('collapsed');
-      section.classList.add('visible');
     } else {
       section.classList.add('collapsed');
-      section.classList.remove('visible');
     }
 
     // Update layout
@@ -194,24 +192,17 @@ class UIManager {
     const userBtn = this.userSection.querySelector('.collapse-btn span');
     const chatBtn = this.chatSection.querySelector('.collapse-btn span');
 
-    sidebarBtn.textContent = this.sidebar.classList.contains('collapsed') ? '▶' : '◀';
-    userBtn.textContent = this.userSection.classList.contains('collapsed') ? '▶' : '▼';
-    chatBtn.textContent = this.chatSection.classList.contains('collapsed') ? '▶' : '▼';
+    if (sidebarBtn) {
+      sidebarBtn.textContent = this.sidebar.classList.contains('collapsed') ? '▶' : '◀';
+    }
+    if (userBtn) {
+      userBtn.textContent = this.userSection.classList.contains('collapsed') ? '▶' : '▼';
+    }
+    if (chatBtn) {
+      chatBtn.textContent = this.chatSection.classList.contains('collapsed') ? '▶' : '▼';
+    }
     
     this.logger.debug('Collapse buttons updated');
-  }
-
-  // Peek functionality for collapsed sections
-  peekSection(sectionName, show) {
-    const section = this[sectionName];
-    if (section && section.classList.contains('collapsed')) {
-      if (show) {
-        section.classList.add('revealed');
-      } else {
-        section.classList.remove('revealed');
-      }
-      this.logger.debug('Section peeked', { sectionName, show });
-    }
   }
 
   clearChat() {

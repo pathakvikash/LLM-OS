@@ -291,10 +291,6 @@ class AppController {
   }
 
   // Peek and restore methods
-  peekSidebar(show) {
-    this.ui.peekSection('sidebar', show);
-  }
-
   restoreSidebar() {
     if (this.state.canHideSection('sidebarVisible')) {
       this.state.updateUIState('sidebarVisible', true);
@@ -304,10 +300,6 @@ class AppController {
     }
   }
 
-  peekUserSection(show) {
-    this.ui.peekSection('userSection', show);
-  }
-
   restoreUserSection() {
     if (this.state.canHideSection('userSectionVisible')) {
       this.state.updateUIState('userSectionVisible', true);
@@ -315,10 +307,6 @@ class AppController {
       this.ui.updateCollapseButtons();
       this.logger.logUserAction('user_section_restored');
     }
-  }
-
-  peekChatSection(show) {
-    this.ui.peekSection('chatSection', show);
   }
 
   restoreChatSection() {

@@ -4,7 +4,14 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>LLM-OS: AI-Powered Application Interface</title>
-  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="css/base.css">
+  <link rel="stylesheet" href="css/layout.css">
+  <link rel="stylesheet" href="css/sidebar.css">
+  <link rel="stylesheet" href="css/sidebar-sections.css">
+  <link rel="stylesheet" href="css/user-section.css">
+  <link rel="stylesheet" href="css/chat-section.css">
+  <link rel="stylesheet" href="css/peek-bars.css">
+  <link rel="stylesheet" href="css/utilities.css">
 </head>
 <body>
   <div class="app-container">
@@ -69,7 +76,7 @@
         </div>
       </div>
     </div>
-    <div class="sidebar-peek peek-bar" id="sidebarPeek" title="Show Sidebar" onclick="restoreSidebar()" onmouseenter="peekSidebar(true)" onmouseleave="peekSidebar(false)">▶</div>
+    <div class="sidebar-peek peek-bar" id="sidebarPeek" title="Show Sidebar" onclick="restoreSidebar()">▶</div>
     
     <!-- Main Content -->
     <div class="main-content" id="mainContent">
@@ -91,7 +98,7 @@
           </div>
         </div>
       </div>
-      <div class="user-peek peek-bar" id="userPeek" title="Show User Section" onclick="restoreUserSection()" onmouseenter="peekUserSection(true)" onmouseleave="peekUserSection(false)">▼</div>
+      <div class="user-peek peek-bar" id="userPeek" title="Show User Section" onclick="restoreUserSection()">▼</div>
       
       <!-- Chat Section -->
       <div class="chat-section" id="chatSection">
@@ -116,7 +123,7 @@
           </div>
         </div>
       </div>
-      <div class="chat-peek peek-bar" id="chatPeek" title="Show Chat Section" onclick="restoreChatSection()" onmouseenter="peekChatSection(true)" onmouseleave="peekChatSection(false)">▲</div>
+      <div class="chat-peek peek-bar" id="chatPeek" title="Show Chat Section" onclick="restoreChatSection()">▲</div>
     </div>
   </div>
 
