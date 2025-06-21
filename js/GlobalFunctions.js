@@ -24,6 +24,7 @@ class GlobalFunctions {
     // Core functionality
     window.sendMessage = () => this.app.sendMessage();
     window.performAction = (actionType) => this.app.performAction(actionType);
+    window.performFileAction = (actionType, fileId) => this.app.performFileAction(actionType, fileId);
     window.handleKeyPress = (event) => {
       if (event.key === 'Enter' && !event.shiftKey) {
         event.preventDefault();
@@ -48,10 +49,42 @@ class GlobalFunctions {
     window.restoreUserSection = () => this.app.restoreUserSection();
     window.restoreChatSection = () => this.app.restoreChatSection();
     
+    // Tab switching function
+    window.switchTab = (tabName) => this.switchTab(tabName);
+    
     // Debug functions
     window.checkModels = () => this.app.checkModels();
     
     this.logger.debug('Global functions setup completed');
+  }
+
+  /**
+   * Switch between tabs in the user section
+   */
+  switchTab(tabName) {
+    try {
+      // Update tab buttons
+      const tabButtons = document.querySelectorAll('.tab-btn');
+      tabButtons.forEach(btn => {
+        btn.classList.remove('active');
+        if (btn.getAttribute('data-tab') === tabName) {
+          btn.classList.add('active');
+        }
+      });
+
+      // Update tab content
+      const tabContents = document.querySelectorAll('.tab-content');
+      tabContents.forEach(content => {
+        content.classList.remove('active');
+        if (content.id === tabName + 'Tab') {
+          content.classList.add('active');
+        }
+      });
+
+      this.logger.debug('Tab switched', { tabName });
+    } catch (error) {
+      this.logger.error('Failed to switch tab', { tabName, error: error.message });
+    }
   }
 
   getApp() {

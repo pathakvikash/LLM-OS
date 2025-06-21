@@ -9,6 +9,7 @@
   <link rel="stylesheet" href="css/sidebar.css">
   <link rel="stylesheet" href="css/sidebar-sections.css">
   <link rel="stylesheet" href="css/user-section.css">
+  <link rel="stylesheet" href="css/file-management.css">
   <link rel="stylesheet" href="css/chat-section.css">
   <link rel="stylesheet" href="css/peek-bars.css">
   <link rel="stylesheet" href="css/utilities.css">
@@ -89,12 +90,27 @@
           </button>
         </div>
         <div class="section-content">
-          <p>This is your workspace area. Select any text in this section to reveal action buttons for AI-powered automation.</p>
-          <p>You can use the automation types from the sidebar to perform different actions on your selected content.</p>
-          <div class="action-buttons" id="actionButtons">
-            <button onclick="performAction('edit')">✏️ Edit</button>
-            <button onclick="performAction('ask')">❓ Ask</button>
-            <button onclick="performAction('agent')">🤖 Agent</button>
+          <div class="content-tabs">
+            <button class="tab-btn active" data-tab="files" onclick="switchTab('files')">📁 Files</button>
+            <button class="tab-btn" data-tab="workspace" onclick="switchTab('workspace')">💼 Workspace</button>
+          </div>
+          
+          <!-- Files Tab -->
+          <div class="tab-content active" id="filesTab">
+            <div class="file-management-container">
+              <!-- File upload and browser will be dynamically inserted here -->
+            </div>
+          </div>
+          
+          <!-- Workspace Tab -->
+          <div class="tab-content" id="workspaceTab">
+            <p>This is your workspace area. Select any text in this section to reveal action buttons for AI-powered automation.</p>
+            <p>You can use the automation types from the sidebar to perform different actions on your selected content.</p>
+            <div class="action-buttons" id="actionButtons">
+              <button onclick="performAction('edit')">✏️ Edit</button>
+              <button onclick="performAction('ask')">❓ Ask</button>
+              <button onclick="performAction('agent')">🤖 Agent</button>
+            </div>
           </div>
         </div>
       </div>
@@ -133,6 +149,8 @@
   <script src="js/AppState.js"></script>
   <script src="js/OllamaAPI.js"></script>
   <script src="js/UIManager.js"></script>
+  <script src="js/FileManager.js"></script>
+  <script src="js/FileUI.js"></script>
   <script src="js/AppController.js"></script>
   <script src="js/GlobalFunctions.js"></script>
   <script src="js/main.js"></script>

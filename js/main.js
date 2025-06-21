@@ -16,6 +16,17 @@ document.addEventListener('DOMContentLoaded', () => {
     const globalFunctions = new GlobalFunctions(config, logger);
     globalFunctions.initialize();
     
+    // Initialize file management system
+    const fileManager = new FileManager(config, logger, globalFunctions.appState);
+    const fileUI = new FileUI(config, logger, fileManager, globalFunctions.uiManager);
+    
+    // Initialize file UI components
+    fileUI.initialize();
+    
+    // Make file management globally accessible
+    window.fileManager = fileManager;
+    window.fileUI = fileUI;
+    
     logger.info('LLM-OS Application initialized successfully');
     
     // Enable debug mode if configured
@@ -44,5 +55,5 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // Export for testing or external use
 if (typeof module !== 'undefined' && module.exports) {
-  module.exports = { AppState, OllamaAPI, UIManager, AppController, GlobalFunctions, AppConfig, Logger };
+  module.exports = { AppState, OllamaAPI, UIManager, AppController, GlobalFunctions, AppConfig, Logger, FileManager, FileUI };
 } 

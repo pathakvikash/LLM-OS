@@ -21,7 +21,7 @@ class AppController {
   }
 
   initializeEventListeners() {
-    // Text selection handling
+    // Text selection handling for workspace tab
     document.getElementById('userSection').addEventListener('mouseup', () => {
       const selection = window.getSelection().toString().trim();
       if (selection) {
@@ -29,6 +29,24 @@ class AppController {
         this.ui.showActionButtons(true);
         this.logger.logUserAction('text_selected', { selectionLength: selection.length });
       } else {
+        this.ui.showActionButtons(false);
+      }
+    });
+
+    // Text selection handling for file viewer
+    document.addEventListener('mouseup', (event) => {
+      const selection = window.getSelection().toString().trim();
+      const isInFileViewer = event.target.closest('.file-viewer');
+      const isInWorkspace = event.target.closest('#workspaceTab');
+      
+      if (selection && (isInFileViewer || isInWorkspace)) {
+        this.state.updateContext('selectedText', selection);
+        this.ui.showActionButtons(true);
+        this.logger.logUserAction('text_selected', { 
+          selectionLength: selection.length,
+          location: isInFileViewer ? 'file_viewer' : 'workspace'
+        });
+      } else if (!selection) {
         this.ui.showActionButtons(false);
       }
     });
@@ -128,6 +146,35 @@ class AppController {
       automationType: this.state.selectedAutomationType
     };
 
+    // Add file context if FileManager is available
+    if (window.fileManager && window.fileUI) {
+      const selectedFileInfo = window.fileUI.getSelectedFileInfo();
+      if (selectedFileInfo) {
+        context.selectedFile = {
+          name: selectedFileInfo.name,
+          type: selectedFileInfo.category,
+          extension: selectedFileInfo.extension,
+          size: selectedFileInfo.size
+        };
+        
+        const fileContent = window.fileManager.getFileContent(selectedFileInfo.id);
+        if (fileContent) {
+          context.fileContent = fileContent;
+        }
+      }
+      
+      // Add all files info for context
+      const allFiles = window.fileManager.getAllFiles();
+      if (allFiles.length > 0) {
+        context.availableFiles = allFiles.map(file => ({
+          name: file.name,
+          type: file.category,
+          extension: file.extension,
+          size: file.size
+        }));
+      }
+    }
+
     const recentMessages = this.state.getConversationContext();
     if (recentMessages.length > 0) {
       const previewLength = this.config.getMessagePreviewLength();
@@ -165,6 +212,21 @@ class AppController {
       prompt += `\n\nAutomation type: ${context.automationType}`;
     }
 
+    // Add file context
+    if (context.selectedFile) {
+      prompt += `\n\nSelected file: ${context.selectedFile.name} (${context.selectedFile.type}, ${context.selectedFile.extension})`;
+      if (context.fileContent) {
+        prompt += `\n\nFile content:\n${context.fileContent}`;
+      }
+    }
+
+    if (context.availableFiles && context.availableFiles.length > 0) {
+      prompt += `\n\nAvailable files (${context.availableFiles.length}):`;
+      context.availableFiles.forEach(file => {
+        prompt += `\n- ${file.name} (${file.type}, ${file.extension})`;
+      });
+    }
+
     if (context.recentConversation && context.recentConversation.length > 0) {
       prompt += `\n\nRecent conversation context: ${JSON.stringify(context.recentConversation)}`;
     }
@@ -190,6 +252,48 @@ class AppController {
     } catch (error) {
       this.logger.error('Action failed', error);
       this.ui.addMessage(`Action failed: ${error.message}`, 'error');
+    }
+  }
+
+  /**
+   * Perform AI action on a specific file
+   */
+  async performFileAction(actionType, fileId) {
+    if (!window.fileManager) {
+      this.ui.addMessage('File management not available', 'error');
+      return;
+    }
+
+    const file = window.fileManager.getFile(fileId);
+    if (!file) {
+      this.ui.addMessage('File not found', 'error');
+      return;
+    }
+
+    const actionMessage = `${actionType.toUpperCase()} request on file: ${file.name}`;
+    this.ui.addMessage(actionMessage, 'user');
+    this.state.addMessage('user', actionMessage);
+
+    try {
+      // Set the file as selected for context
+      if (window.fileUI) {
+        window.fileUI.selectedFileId = fileId;
+      }
+
+      const context = this.buildContext();
+      const response = await this.getAIResponse(actionMessage, context);
+      
+      this.ui.addMessage(response, 'agent');
+      this.state.addMessage('assistant', response);
+      
+      this.logger.logUserAction('file_action_performed', { 
+        actionType, 
+        fileName: file.name,
+        fileType: file.category 
+      });
+    } catch (error) {
+      this.logger.error('File action failed', error);
+      this.ui.addMessage(`File action failed: ${error.message}`, 'error');
     }
   }
 

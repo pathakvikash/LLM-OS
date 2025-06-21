@@ -1,119 +1,135 @@
 # LLM-OS: AI-Powered Application Interface
 
-A web-based application that integrates with Ollama AI models to provide intelligent assistance with context awareness and session management.
+A modern, AI-powered application interface that integrates file management, workspace automation, and AI assistance in a single, intuitive platform.
 
 ## Features
 
-- 🤖 **AI Integration**: Connect to any Ollama model
-- 🧠 **Context Awareness**: Maintains conversation history and user context
-- 💾 **Session Management**: Persistent sessions across browser refreshes
-- 🎯 **Smart Actions**: Edit, Ask, and Agent actions on selected text
-- 🔄 **State Persistence**: Automatic save/load of conversations and context
+### 🤖 AI Integration
+- **Multiple AI Models**: Support for various Ollama models
+- **Automation Types**: Edit, Ask, and Agent modes for different AI interactions
+- **Context-Aware**: AI understands your files, workspace, and conversation history
+- **Real-time Processing**: Instant AI responses with loading indicators
 
-## Setup
+### 📁 File Management System
+- **Multi-format Support**: Upload and manage text files, images, and documents
+- **Supported File Types**:
+  - **Text Files**: `.txt`, `.md`, `.py`, `.js`, `.html`, `.css`, `.json`, `.xml`, `.csv`, `.ts`, `.jsx`, `.tsx`, `.vue`, `.php`, `.java`, `.cpp`, `.c`, `.h`, `.rb`, `.go`, `.rs`, `.swift`, `.kt`, `.scala`, `.r`, `.sql`, `.sh`, `.bash`, `.yaml`, `.yml`, `.toml`, `.ini`, `.conf`, `.log`
+  - **Images**: `.png`, `.jpg`, `.jpeg`, `.gif`, `.bmp`, `.svg`, `.webp`
+  - **Documents**: `.pdf`, `.doc`, `.docx`, `.rtf`
+
+- **File Operations**:
+  - Drag & drop file upload
+  - File browser with search and filtering
+  - File viewer with syntax highlighting
+  - Download and delete files
+  - AI-powered file analysis and editing
+
+### 💼 Workspace Management
+- **Tabbed Interface**: Separate Files and Workspace sections
+- **Text Selection**: Select any text to trigger AI actions
+- **Action Buttons**: Quick access to Edit, Ask, and Agent modes
+- **Session Management**: Persistent sessions with conversation history
+
+### 🎨 Modern UI
+- **Glass Morphism Design**: Beautiful, modern interface
+- **Responsive Layout**: Works on desktop and mobile devices
+- **Collapsible Sections**: Customize your workspace layout
+- **Dark Theme**: Easy on the eyes for extended use
+
+## Getting Started
 
 ### Prerequisites
-
-1. **Node.js** (v14 or higher)
-2. **Ollama** installed and running locally
+- Modern web browser with JavaScript enabled
+- Ollama installed and running locally
+- At least one AI model pulled (e.g., `ollama pull llama2`)
 
 ### Installation
+1. Clone or download this repository
+2. Ensure Ollama is running: `ollama serve`
+3. Pull a model: `ollama pull llama2`
+4. Open `index.html` in your browser or serve it with a local server
 
-1. **Install dependencies:**
-   ```bash
-   npm install
-   ```
+### Usage
 
-2. **Start Ollama:**
-   ```bash
-   # Make sure Ollama is running on localhost:11434
-   ollama serve
-   ```
+#### File Management
+1. **Upload Files**: Drag and drop files into the upload area or click to browse
+2. **Browse Files**: Use the file browser to view, search, and filter your files
+3. **View Files**: Click on any file to open it in the viewer
+4. **AI Actions**: Use the action buttons (✏️, ❓, 🤖) to interact with files using AI
 
-3. **Pull a model (optional):**
-   ```bash
-   # Example: Pull Llama 3.2
-   ollama pull llama3.2
-   ```
+#### Workspace
+1. **Text Selection**: Select any text in the workspace to reveal action buttons
+2. **AI Actions**: Choose from Edit, Ask, or Agent modes
+3. **Conversation**: Chat with the AI assistant in the chat section
 
-4. **Start the proxy server:**
-   ```bash
-   npm start
-   ```
-
-5. **Open the application:**
-   Navigate to `http://localhost:3000` in your browser
-
-## Usage
-
-### Basic Chat
-- Type messages in the chat input
-- Press Enter or click Send to get AI responses
-- Conversations persist across browser sessions
-
-### Context Actions
-1. **Select text** in the user section
-2. **Action buttons** will appear (Edit, Ask, Agent)
-3. **Click an action** to perform context-aware operations
-
-### Available Models
-The application automatically detects available Ollama models. You can change models by:
-- Pulling new models with `ollama pull <model-name>`
-- The app will detect and use available models
+#### AI Models
+1. **Model Selection**: Choose from available Ollama models in the sidebar
+2. **Automation Types**: Select the type of AI interaction you want
+3. **Session Management**: Create new chats, clear sessions, or reset models
 
 ## Architecture
 
-### Components
+### Core Modules
+- **AppController**: Main application orchestrator
+- **AppState**: Session and state management
+- **FileManager**: File storage and management with IndexedDB
+- **FileUI**: File management user interface
+- **UIManager**: UI interactions and updates
+- **OllamaAPI**: AI model communication
+- **Logger**: Comprehensive logging system
 
-- **AppState**: Manages session, context, and conversation history
-- **OllamaAPI**: Handles communication with Ollama models
-- **UIManager**: Manages user interface and interactions
-- **AppController**: Main application logic and coordination
+### Data Storage
+- **IndexedDB**: Persistent file storage
+- **localStorage**: Session and configuration persistence
+- **Memory**: Active file content and conversation history
 
-### Data Flow
+## Configuration
 
-1. User input → AppController
-2. Context building → AI prompt generation
-3. Ollama API call → Response processing
-4. State update → UI refresh
+The application uses a configuration system that can be customized in `js/config.js`:
 
-## Troubleshooting
-
-### CORS Issues
-The proxy server handles CORS automatically. If you see CORS errors:
-- Make sure the proxy server is running (`npm start`)
-- Check that Ollama is running on `localhost:11434`
-
-### Model Not Found
-- Ensure the model is pulled: `ollama pull <model-name>`
-- Check available models: `ollama list`
-
-### Connection Issues
-- Verify Ollama is running: `curl http://localhost:11434/api/tags`
-- Check proxy server logs for errors
+- **Model Settings**: Default model, endpoint configuration
+- **UI Settings**: Animation preferences, display options
+- **File Settings**: Maximum file size, supported types
+- **Session Settings**: History limits, context management
 
 ## Development
 
-### Running in Development Mode
-```bash
-npm run dev
-```
-
-### File Structure
+### Project Structure
 ```
 LLM-OS/
-├── index.html          # Main application
-├── server.js           # Proxy server
-├── package.json        # Dependencies
-└── README.md          # This file
+├── css/                 # Stylesheets
+│   ├── base.css        # Base styles and variables
+│   ├── layout.css      # Layout components
+│   ├── file-management.css # File management styles
+│   └── ...
+├── js/                 # JavaScript modules
+│   ├── AppController.js # Main application controller
+│   ├── FileManager.js  # File management system
+│   ├── FileUI.js       # File management UI
+│   └── ...
+├── index.html          # Main application file
+└── README.md           # This file
 ```
 
-## API Endpoints
+### Adding New Features
+1. Create new modules in the `js/` directory
+2. Add corresponding styles in `css/`
+3. Update the main initialization in `main.js`
+4. Document new features in this README
 
-The proxy server forwards these endpoints to Ollama:
-- `POST /api/generate` - Generate text responses
-- `GET /api/tags` - List available models
+## Browser Support
+
+- Chrome/Chromium (recommended)
+- Firefox
+- Safari
+- Edge
+
+Note: IndexedDB support is required for file persistence.
 
 ## License
 
-MIT License 
+This project is open source and available under the MIT License.
+
+## Contributing
+
+Contributions are welcome! Please feel free to submit pull requests or open issues for bugs and feature requests. 
