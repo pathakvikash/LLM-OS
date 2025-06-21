@@ -58,6 +58,13 @@ html, body {
   overflow-y: auto;
   position: relative;
   z-index: 10;
+  transition: var(--transition);
+}
+
+.sidebar.collapsed {
+  width: 0;
+  overflow: hidden;
+  border-right: none;
 }
 
 .sidebar::before {
@@ -78,6 +85,13 @@ html, body {
   background: rgba(255, 255, 255, 0.03);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+.header-content {
+  flex: 1;
 }
 
 .sidebar-header h1 {
@@ -96,6 +110,35 @@ html, body {
   color: var(--text-secondary);
   font-weight: 400;
   line-height: 1.4;
+}
+
+/* Collapse Button */
+.collapse-btn {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--glass-border);
+  border-radius: 50%;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: var(--transition);
+  color: var(--text-primary);
+  font-size: 12px;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  flex-shrink: 0;
+}
+
+.collapse-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.2);
+  transform: scale(1.05);
+}
+
+.collapse-btn:active {
+  transform: scale(0.95);
 }
 
 .sidebar-section {
@@ -324,8 +367,14 @@ html, body {
   padding: 24px;
   gap: 24px;
   overflow: hidden;
+  transition: var(--transition);
 }
 
+.main-content.sidebar-hidden {
+  margin-left: 0;
+}
+
+/* User Section */
 .user-section {
   flex: 1;
   background: var(--glass-bg);
@@ -337,6 +386,19 @@ html, body {
   position: relative;
   border: 1px solid var(--glass-border);
   box-shadow: var(--glass-shadow);
+  transition: var(--transition);
+  display: flex;
+  flex-direction: column;
+}
+
+.user-section.collapsed {
+  flex: 0;
+  padding: 0;
+  overflow: hidden;
+}
+
+.user-section.collapsed .section-content {
+  display: none;
 }
 
 .user-section::before {
@@ -352,12 +414,24 @@ html, body {
   z-index: -1;
 }
 
-.user-section h2 {
-  color: var(--text-primary);
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
   margin-bottom: 24px;
+}
+
+.section-header h2 {
+  color: var(--text-primary);
   font-size: 24px;
   font-weight: 700;
   letter-spacing: -0.5px;
+  margin: 0;
+}
+
+.section-content {
+  flex: 1;
+  overflow-y: auto;
 }
 
 .user-section p {
@@ -409,6 +483,12 @@ html, body {
   flex-direction: column;
   position: relative;
   overflow: hidden;
+  transition: var(--transition);
+}
+
+.chat-section.collapsed {
+  height: 0;
+  overflow: hidden;
 }
 
 .chat-section::before {
@@ -442,6 +522,12 @@ html, body {
   letter-spacing: -0.2px;
 }
 
+.header-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
 .chat-status {
   font-size: 12px;
   color: var(--text-muted);
@@ -450,6 +536,13 @@ html, body {
   background: rgba(255, 255, 255, 0.06);
   border-radius: 20px;
   border: 1px solid var(--glass-border);
+}
+
+.chat-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 
 .chat-box {
@@ -580,6 +673,11 @@ html, body {
     max-height: 300px;
   }
   
+  .sidebar.collapsed {
+    width: 100%;
+    height: 0;
+  }
+  
   .main-content {
     padding: 16px;
     gap: 16px;
@@ -659,4 +757,121 @@ html {
 .chat-section {
   will-change: transform;
   transform: translateZ(0);
+}
+
+.collapsed {
+  display: none !important;
+}
+
+/* Peek Bar Styles */
+.peek-bar {
+  position: absolute;
+  z-index: 100;
+  background: rgba(0,0,0,0.12);
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.2s, opacity 0.2s;
+  opacity: 0.5;
+}
+.peek-bar:hover {
+  background: var(--accent-primary);
+  color: #fff;
+  opacity: 1;
+}
+
+/* Sidebar peek bar (left edge) */
+.sidebar.collapsed + .sidebar-peek {
+  display: flex;
+}
+.sidebar-peek {
+  display: none;
+  position: fixed;
+  left: 0;
+  top: 0;
+  height: 100vh;
+  width: 18px;
+  border-radius: 0 8px 8px 0;
+  background: rgba(0,0,0,0.12);
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  pointer-events: auto;
+  transition: background 0.2s, opacity 0.2s;
+  opacity: 0.5;
+  z-index: 1001;
+}
+
+/* User section peek bar (top edge) */
+.user-section.collapsed + .user-peek {
+  display: flex;
+}
+.user-peek {
+  display: none;
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 18px;
+  border-radius: 0 0 8px 8px;
+  background: rgba(0,0,0,0.12);
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  pointer-events: auto;
+  transition: background 0.2s, opacity 0.2s;
+  opacity: 0.5;
+  z-index: 1001;
+}
+
+/* Chat section peek bar (bottom edge) */
+.chat-section.collapsed + .chat-peek {
+  display: flex;
+}
+.chat-peek {
+  display: none;
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 100%;
+  height: 18px;
+  border-radius: 8px 8px 0 0;
+  background: rgba(0,0,0,0.12);
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  pointer-events: auto;
+  transition: background 0.2s, opacity 0.2s;
+  opacity: 0.5;
+  z-index: 1001;
+}
+
+/* Reveal effect for peeking */
+.sidebar.collapsed.revealed {
+  width: 320px !important;
+  min-width: 220px;
+  box-shadow: var(--glass-shadow);
+  transition: width 0.3s;
+}
+.user-section.collapsed.revealed {
+  flex: 1 !important;
+  min-height: 120px;
+  padding: 32px;
+  box-shadow: var(--glass-shadow);
+  transition: flex 0.3s, padding 0.3s;
+}
+.chat-section.collapsed.revealed {
+  height: 400px !important;
+  min-height: 120px;
+  box-shadow: var(--glass-shadow);
+  transition: height 0.3s;
+}
+
+/* Hide peek bar when not collapsed */
+.sidebar:not(.collapsed) + .sidebar-peek,
+.user-section:not(.collapsed) + .user-peek,
+.chat-section:not(.collapsed) + .chat-peek {
+  display: none !important;
 }

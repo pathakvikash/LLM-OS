@@ -9,10 +9,15 @@
 <body>
   <div class="app-container">
     <!-- Sidebar -->
-    <div class="sidebar">
+    <div class="sidebar" id="sidebar">
       <div class="sidebar-header">
-        <h1>LLM-OS</h1>
-        <p>AI-Powered Application Interface</p>
+        <div class="header-content">
+          <h1>LLM-OS</h1>
+          <p>AI-Powered Application Interface</p>
+        </div>
+        <button class="collapse-btn" onclick="toggleSidebar()" title="Toggle Sidebar">
+          <span>◀</span>
+        </button>
       </div>
       
       <!-- Model Selection -->
@@ -64,37 +69,54 @@
         </div>
       </div>
     </div>
+    <div class="sidebar-peek peek-bar" id="sidebarPeek" title="Show Sidebar" onclick="restoreSidebar()" onmouseenter="peekSidebar(true)" onmouseleave="peekSidebar(false)">▶</div>
     
     <!-- Main Content -->
-    <div class="main-content">
+    <div class="main-content" id="mainContent">
       <!-- User Section -->
       <div class="user-section" id="userSection">
-        <h2>User Application Section</h2>
-        <p>This is your workspace area. Select any text in this section to reveal action buttons for AI-powered automation.</p>
-        <p>You can use the automation types from the sidebar to perform different actions on your selected content.</p>
-        <div class="action-buttons" id="actionButtons">
-          <button onclick="performAction('edit')">✏️ Edit</button>
-          <button onclick="performAction('ask')">❓ Ask</button>
-          <button onclick="performAction('agent')">🤖 Agent</button>
+        <div class="section-header">
+          <h2>User Application Section</h2>
+          <button class="collapse-btn" onclick="toggleUserSection()" title="Toggle User Section">
+            <span>▼</span>
+          </button>
         </div>
-      </div>
-      
-      <!-- Chat Section -->
-      <div class="chat-section">
-        <div class="chat-header">
-          <h3>AI Assistant</h3>
-          <div class="chat-status" id="chatStatus">Ready</div>
-        </div>
-        <div class="chat-box" id="chatBox">
-          <p><strong>Agent:</strong> Hello! I'm your AI assistant. How can I help you today?</p>
-        </div>
-        <div class="chat-input-container">
-          <div class="chat-input">
-            <input type="text" id="userInput" placeholder="Type a message..." onkeypress="handleKeyPress(event)">
-            <button onclick="sendMessage()" id="sendButton">Send</button>
+        <div class="section-content">
+          <p>This is your workspace area. Select any text in this section to reveal action buttons for AI-powered automation.</p>
+          <p>You can use the automation types from the sidebar to perform different actions on your selected content.</p>
+          <div class="action-buttons" id="actionButtons">
+            <button onclick="performAction('edit')">✏️ Edit</button>
+            <button onclick="performAction('ask')">❓ Ask</button>
+            <button onclick="performAction('agent')">🤖 Agent</button>
           </div>
         </div>
       </div>
+      <div class="user-peek peek-bar" id="userPeek" title="Show User Section" onclick="restoreUserSection()" onmouseenter="peekUserSection(true)" onmouseleave="peekUserSection(false)">▼</div>
+      
+      <!-- Chat Section -->
+      <div class="chat-section" id="chatSection">
+        <div class="chat-header">
+          <h3>AI Assistant</h3>
+          <div class="header-controls">
+            <div class="chat-status" id="chatStatus">Ready</div>
+            <button class="collapse-btn" onclick="toggleChatSection()" title="Toggle Chat Section">
+              <span>▼</span>
+            </button>
+          </div>
+        </div>
+        <div class="chat-content">
+          <div class="chat-box" id="chatBox">
+            <p><strong>Agent:</strong> Hello! I'm your AI assistant. How can I help you today?</p>
+          </div>
+          <div class="chat-input-container">
+            <div class="chat-input">
+              <input type="text" id="userInput" placeholder="Type a message..." onkeypress="handleKeyPress(event)">
+              <button onclick="sendMessage()" id="sendButton">Send</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="chat-peek peek-bar" id="chatPeek" title="Show Chat Section" onclick="restoreChatSection()" onmouseenter="peekChatSection(true)" onmouseleave="peekChatSection(false)">▲</div>
     </div>
   </div>
 
@@ -110,6 +132,13 @@
         this.isProcessing = false;
         this.systemPrompt = this.getSystemPrompt();
         this.selectedAutomationType = 'ask'; // Default automation type
+        
+        // UI State Management
+        this.uiState = {
+          sidebarVisible: true,
+          userSectionVisible: true,
+          chatSectionVisible: true
+        };
         
         // Load state from localStorage if available
         this.loadState();
@@ -161,7 +190,8 @@
             userContext: Object.fromEntries(this.userContext),
             conversationHistory: this.conversationHistory.slice(-20), // Keep last 20 messages
             currentModel: this.currentModel,
-            selectedAutomationType: this.selectedAutomationType
+            selectedAutomationType: this.selectedAutomationType,
+            uiState: this.uiState
           };
           localStorage.setItem('llmOS_state', JSON.stringify(stateData));
         } catch (error) {
@@ -179,6 +209,7 @@
             this.conversationHistory = stateData.conversationHistory || [];
             this.currentModel = stateData.currentModel || this.currentModel;
             this.selectedAutomationType = stateData.selectedAutomationType || this.selectedAutomationType;
+            this.uiState = { ...this.uiState, ...stateData.uiState };
           }
         } catch (error) {
           console.warn('Failed to load state:', error);
@@ -202,6 +233,17 @@
       setAutomationType(type) {
         this.selectedAutomationType = type;
         this.saveState();
+      }
+
+      // UI State Management
+      updateUIState(key, value) {
+        this.uiState[key] = value;
+        this.saveState();
+      }
+
+      canHideSection(sectionName) {
+        const visibleSections = Object.values(this.uiState).filter(visible => visible).length;
+        return visibleSections > 1 || !this.uiState[sectionName];
       }
     }
 
@@ -344,6 +386,12 @@
         this.sessionInfo = document.getElementById('sessionInfo');
         this.sessionId = document.getElementById('sessionId');
         this.chatStatus = document.getElementById('chatStatus');
+        
+        // Section elements
+        this.sidebar = document.getElementById('sidebar');
+        this.userSection = document.getElementById('userSection');
+        this.chatSection = document.getElementById('chatSection');
+        this.mainContent = document.getElementById('mainContent');
       }
 
       addMessage(message, type = 'user') {
@@ -441,6 +489,53 @@
           selectedElement.classList.add('active');
         }
       }
+
+      // Section visibility management
+      toggleSection(sectionName, visible) {
+        const section = this[sectionName];
+        if (!section) return;
+
+        if (visible) {
+          section.classList.remove('collapsed');
+          section.classList.add('visible');
+        } else {
+          section.classList.add('collapsed');
+          section.classList.remove('visible');
+        }
+
+        // Update layout
+        this.updateLayout();
+      }
+
+      updateLayout() {
+        // Add/remove classes to main container based on visible sections
+        const sidebarVisible = !this.sidebar.classList.contains('collapsed');
+        const userVisible = !this.userSection.classList.contains('collapsed');
+        const chatVisible = !this.chatSection.classList.contains('collapsed');
+
+        this.mainContent.className = 'main-content';
+        
+        if (!sidebarVisible) {
+          this.mainContent.classList.add('sidebar-hidden');
+        }
+        if (!userVisible) {
+          this.mainContent.classList.add('user-hidden');
+        }
+        if (!chatVisible) {
+          this.mainContent.classList.add('chat-hidden');
+        }
+      }
+
+      updateCollapseButtons() {
+        // Update button text based on current state
+        const sidebarBtn = this.sidebar.querySelector('.collapse-btn span');
+        const userBtn = this.userSection.querySelector('.collapse-btn span');
+        const chatBtn = this.chatSection.querySelector('.collapse-btn span');
+
+        sidebarBtn.textContent = this.sidebar.classList.contains('collapsed') ? '▶' : '◀';
+        userBtn.textContent = this.userSection.classList.contains('collapsed') ? '▶' : '▼';
+        chatBtn.textContent = this.chatSection.classList.contains('collapsed') ? '▶' : '▼';
+      }
     }
 
     // Main Application Controller
@@ -454,6 +549,7 @@
         this.initializeModel();
         this.loadConversationHistory();
         this.updateUI();
+        this.applySavedUIState();
       }
 
       initializeEventListeners() {
@@ -502,6 +598,14 @@
       updateUI() {
         this.ui.updateSessionInfo(this.state.sessionId);
         this.ui.selectAutomationType(this.state.selectedAutomationType);
+      }
+
+      applySavedUIState() {
+        // Apply saved UI state
+        this.ui.toggleSection('sidebar', this.state.uiState.sidebarVisible);
+        this.ui.toggleSection('userSection', this.state.uiState.userSectionVisible);
+        this.ui.toggleSection('chatSection', this.state.uiState.chatSectionVisible);
+        this.ui.updateCollapseButtons();
       }
 
       async sendMessage() {
@@ -648,6 +752,40 @@
         this.ui.selectAutomationType(type);
         this.ui.addMessage(`Automation type set to: ${type}`, 'system');
       }
+
+      // Section toggle methods
+      toggleSidebar() {
+        if (this.state.canHideSection('sidebarVisible')) {
+          const newState = !this.state.uiState.sidebarVisible;
+          this.state.updateUIState('sidebarVisible', newState);
+          this.ui.toggleSection('sidebar', newState);
+          this.ui.updateCollapseButtons();
+        } else {
+          this.ui.addMessage('Cannot hide sidebar: At least one section must remain visible', 'system');
+        }
+      }
+
+      toggleUserSection() {
+        if (this.state.canHideSection('userSectionVisible')) {
+          const newState = !this.state.uiState.userSectionVisible;
+          this.state.updateUIState('userSectionVisible', newState);
+          this.ui.toggleSection('userSection', newState);
+          this.ui.updateCollapseButtons();
+        } else {
+          this.ui.addMessage('Cannot hide user section: At least one section must remain visible', 'system');
+        }
+      }
+
+      toggleChatSection() {
+        if (this.state.canHideSection('chatSectionVisible')) {
+          const newState = !this.state.uiState.chatSectionVisible;
+          this.state.updateUIState('chatSectionVisible', newState);
+          this.ui.toggleSection('chatSection', newState);
+          this.ui.updateCollapseButtons();
+        } else {
+          this.ui.addMessage('Cannot hide chat section: At least one section must remain visible', 'system');
+        }
+      }
     }
 
     // Initialize the application
@@ -676,13 +814,75 @@
         location.reload();
       };
       
+      // Section toggle functions
+      window.toggleSidebar = () => app.toggleSidebar();
+      window.toggleUserSection = () => app.toggleUserSection();
+      window.toggleChatSection = () => app.toggleChatSection();
+      
       // Debug functions
       window.checkModels = async () => {
         const models = await app.ollama.getAvailableModels();
         console.log('Available models:', models);
         app.ui.addMessage(`Available models: ${models.map(m => m.name).join(', ')}`, 'system');
       };
+
+      // Add peek/restore logic for each section
+      window.peekSidebar = function(show) {
+        const sidebar = document.getElementById('sidebar');
+        if (sidebar.classList.contains('collapsed')) {
+          if (show) sidebar.classList.add('revealed');
+          else sidebar.classList.remove('revealed');
+        }
+      };
+      window.restoreSidebar = function() {
+        if (app && app.state.canHideSection('sidebarVisible')) {
+          app.state.updateUIState('sidebarVisible', true);
+          app.ui.toggleSection('sidebar', true);
+          app.ui.updateCollapseButtons();
+        }
+      };
+      window.peekUserSection = function(show) {
+        const userSection = document.getElementById('userSection');
+        if (userSection.classList.contains('collapsed')) {
+          if (show) userSection.classList.add('revealed');
+          else userSection.classList.remove('revealed');
+        }
+      };
+      window.restoreUserSection = function() {
+        if (app && app.state.canHideSection('userSectionVisible')) {
+          app.state.updateUIState('userSectionVisible', true);
+          app.ui.toggleSection('userSection', true);
+          app.ui.updateCollapseButtons();
+        }
+      };
+      window.peekChatSection = function(show) {
+        const chatSection = document.getElementById('chatSection');
+        if (chatSection.classList.contains('collapsed')) {
+          if (show) chatSection.classList.add('revealed');
+          else chatSection.classList.remove('revealed');
+        }
+      };
+      window.restoreChatSection = function() {
+        if (app && app.state.canHideSection('chatSectionVisible')) {
+          app.state.updateUIState('chatSectionVisible', true);
+          app.ui.toggleSection('chatSection', true);
+          app.ui.updateCollapseButtons();
+        }
+      };
     });
+
+    const sectionIds = ['sidebar', 'userSection', 'chatSection'];
+
+    function toggleSection(sectionId) {
+      const visibleSections = sectionIds.filter(id => !document.getElementById(id).classList.contains('collapsed'));
+      const section = document.getElementById(sectionId);
+
+      if (!section.classList.contains('collapsed') && visibleSections.length === 1) {
+        alert('At least one section must remain visible.');
+        return;
+      }
+      section.classList.toggle('collapsed');
+    }
   </script>
 </body>
 </html>
