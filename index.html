@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Agentic App Prototype</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    html, body {
+      height: 100%;
+      font-family: Arial, sans-serif;
+    }
+    .container {
+      display: flex;
+      height: 100vh;
+      width: 100vw;
+    }
+    .user-section {
+      flex: 4;
+      background-color: #f0f0f0;
+      padding: 20px;
+      overflow-y: auto;
+      position: relative;
+    }
+    .action-buttons {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      display: none;
+      gap: 8px;
+    }
+    .action-buttons button {
+      padding: 6px 10px;
+      border: none;
+      background-color: #007BFF;
+      color: white;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    .agent-section {
+      flex: 1;
+      background-color: #1e1e2f;
+      color: white;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: 10px;
+    }
+    .chat-box {
+      flex: 1;
+      overflow-y: auto;
+      margin-bottom: 10px;
+    }
+    .chat-input {
+      display: flex;
+    }
+    .chat-input input {
+      flex: 1;
+      padding: 8px;
+      border: none;
+      border-radius: 4px 0 0 4px;
+    }
+    .chat-input button {
+      padding: 8px 12px;
+      background-color: #4CAF50;
+      border: none;
+      color: white;
+      border-radius: 0 4px 4px 0;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="user-section" id="userSection">
+      <h2>User Application Section</h2>
+      <p>Select some text in this area to reveal action buttons.</p>
+      <div class="action-buttons" id="actionButtons">
+        <button onclick="performAction('edit')">Edit</button>
+        <button onclick="performAction('ask')">Ask</button>
+        <button onclick="performAction('agent')">Agent</button>
+      </div>
+    </div>
+    <div class="agent-section">
+      <div class="chat-box" id="chatBox">
+        <p><strong>Agent:</strong> Hello! How can I assist you today?</p>
+      </div>
+      <div class="chat-input">
+        <input type="text" id="userInput" placeholder="Type a message...">
+        <button onclick="sendMessage()">Send</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const appState = {
+      userContext: {},
+      agentMessages: [],
+      userMessages: []
+    };
+
+    function sendMessage() {
+      const input = document.getElementById("userInput");
+      const chatBox = document.getElementById("chatBox");
+      const message = input.value.trim();
+
+      if (message) {
+        appState.userMessages.push(message);
+
+        const userMsg = document.createElement("p");
+        userMsg.innerHTML = `<strong>You:</strong> ${message}`;
+        chatBox.appendChild(userMsg);
+
+        const response = `I'm working on it based on: ${message}`;
+        appState.agentMessages.push(response);
+
+        const agentMsg = document.createElement("p");
+        agentMsg.innerHTML = `<strong>Agent:</strong> ${response}`;
+        chatBox.appendChild(agentMsg);
+
+        chatBox.scrollTop = chatBox.scrollHeight;
+        input.value = "";
+      }
+    }
+
+    function updateUserContext(key, value) {
+      appState.userContext[key] = value;
+      console.log("Updated context:", appState.userContext);
+    }
+
+    document.getElementById("userSection").addEventListener("mouseup", () => {
+      const selection = window.getSelection().toString().trim();
+      const buttons = document.getElementById("actionButtons");
+      if (selection) {
+        updateUserContext("selectedText", selection);
+        buttons.style.display = "flex";
+      } else {
+        buttons.style.display = "none";
+      }
+    });
+
+    function performAction(actionType) {
+      const selected = appState.userContext.selectedText || "[no selection]";
+      sendToAgent(`${actionType.toUpperCase()} request on: ${selected}`);
+    }
+
+    function sendToAgent(message) {
+      const chatBox = document.getElementById("chatBox");
+
+      const userMsg = document.createElement("p");
+      userMsg.innerHTML = `<strong>You:</strong> ${message}`;
+      chatBox.appendChild(userMsg);
+
+      const agentMsg = document.createElement("p");
+      agentMsg.innerHTML = `<strong>Agent:</strong> Action '${message}' acknowledged.`;
+      chatBox.appendChild(agentMsg);
+
+      chatBox.scrollTop = chatBox.scrollHeight;
+    }
+  </script>
+</body>
+</html>
