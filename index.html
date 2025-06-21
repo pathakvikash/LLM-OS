@@ -111,12 +111,36 @@
           
           <!-- Workspace Tab -->
           <div class="tab-content" id="workspaceTab">
-            <p>This is your workspace area. Select any text in this section to reveal action buttons for AI-powered automation.</p>
-            <p>You can use the automation types from the sidebar to perform different actions on your selected content.</p>
-            <div class="action-buttons" id="actionButtons">
-              <button onclick="performAction('edit')">✏️ Edit</button>
-              <button onclick="performAction('ask')">❓ Ask</button>
-              <button onclick="performAction('agent')">🤖 Agent</button>
+            <div class="workspace-drop-zone" id="workspaceDropZone">
+              <div class="drop-zone-overlay" id="dropZoneOverlay" style="display: none;">
+                <div class="drop-zone-content">
+                  <div class="drop-icon">📁</div>
+                  <h3>Drop files here to chat with them</h3>
+                  <p>Supported: Text files, Images, Documents</p>
+                </div>
+              </div>
+              <div class="workspace-content">
+                <div class="workspace-header">
+                  <h3>💼 Workspace</h3>
+                  <div class="workspace-controls">
+                    <button class="workspace-test-btn" onclick="testDragAndDropChain()" title="Test drag and drop">🧪 Test</button>
+                    <button class="clear-workspace-btn" onclick="workspaceManager.clearWorkspace()" title="Clear all files from workspace">
+                      🗑️ Clear Workspace
+                    </button>
+                  </div>
+                </div>
+                <p>This is your workspace area. Select any text in this section to reveal action buttons for AI-powered automation.</p>
+                <p>You can also drag and drop files here to chat with their content!</p>
+                <p>You can use the automation types from the sidebar to perform different actions on your selected content.</p>
+                <div class="action-buttons" id="actionButtons">
+                  <button onclick="performAction('edit')">✏️ Edit</button>
+                  <button onclick="performAction('ask')">❓ Ask</button>
+                  <button onclick="performAction('agent')">🤖 Agent</button>
+                </div>
+                <div class="workspace-files" id="workspaceFiles">
+                  <!-- Dropped files will be displayed here -->
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -159,6 +183,7 @@
   <script src="js/FileManager.js"></script>
   <script src="js/FileUI.js"></script>
   <script src="js/AppController.js"></script>
+  <script src="js/WorkspaceManager.js"></script>
   <script src="js/GlobalFunctions.js"></script>
   <script src="js/main.js"></script>
 </body>

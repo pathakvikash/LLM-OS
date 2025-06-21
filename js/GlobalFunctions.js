@@ -90,6 +90,10 @@ class GlobalFunctions {
   getApp() {
     return this.app;
   }
+
+  get appController() {
+    return this.app;
+  }
 }
 
 // Legacy function for backward compatibility

@@ -1,0 +1,38 @@
+# Test File for LLM-OS Workspace
+
+This is a test file to demonstrate the drag and drop functionality in the LLM-OS workspace.
+
+## Features to Test
+
+1. **Drag and Drop**: Drag this file into the workspace area
+2. **File Processing**: The file should be processed and added to the workspace
+3. **Chat Integration**: Click the "Chat" button to start chatting with this file's content
+4. **AI Context**: The AI should be able to reference this file's content in responses
+
+## Sample Code
+
+```javascript
+// Example JavaScript code
+function greetUser(name) {
+    return `Hello, ${name}! Welcome to LLM-OS workspace.`;
+}
+
+console.log(greetUser("User"));
+```
+
+## Sample Data
+
+- Item 1: Test data for demonstration
+- Item 2: Another test item
+- Item 3: Final test item
+
+## Instructions
+
+1. Switch to the "Workspace" tab
+2. Drag this file into the workspace area
+3. You should see a visual drop zone overlay
+4. The file will be added to the workspace
+5. Click "Chat" to start a conversation about this file
+6. Ask questions like "What's in this file?" or "Explain the code"
+
+This demonstrates how you can easily work with files in the LLM-OS interface! 

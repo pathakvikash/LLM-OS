@@ -196,6 +196,48 @@ class AppController {
       this.logger.debug('FileManager or FileUI not available');
     }
 
+    // Add workspace context if WorkspaceManager is available
+    if (window.workspaceManager) {
+      this.logger.debug('WorkspaceManager available, building workspace context');
+      
+      const workspaceContext = window.workspaceManager.getWorkspaceContext();
+      if (workspaceContext) {
+        this.logger.debug('Workspace context found', { 
+          totalFiles: workspaceContext.totalFiles,
+          totalSize: workspaceContext.totalSize
+        });
+        
+        context.workspace = workspaceContext;
+        
+        // Add workspace file contents for context
+        const workspaceFiles = workspaceContext.workspaceFiles;
+        if (workspaceFiles.length > 0) {
+          context.workspaceFileContents = {};
+          
+          for (const file of workspaceFiles) {
+            const content = window.workspaceManager.getWorkspaceFileContent(file.id);
+            if (content) {
+              context.workspaceFileContents[file.id] = {
+                name: file.name,
+                type: file.type,
+                content: content
+              };
+              
+              this.logger.debug('Workspace file content added', { 
+                fileId: file.id,
+                fileName: file.name,
+                contentLength: content.length
+              });
+            }
+          }
+        }
+      } else {
+        this.logger.debug('No workspace context found');
+      }
+    } else {
+      this.logger.debug('WorkspaceManager not available');
+    }
+
     const recentMessages = this.state.getConversationContext();
     if (recentMessages.length > 0) {
       const previewLength = this.config.getMessagePreviewLength();
@@ -209,7 +251,9 @@ class AppController {
       contextKeys: Object.keys(context),
       hasSelectedFile: !!context.selectedFile,
       hasFileContent: !!context.fileContent,
-      fileContentLength: context.fileContent?.length || 0
+      fileContentLength: context.fileContent?.length || 0,
+      hasWorkspace: !!context.workspace,
+      workspaceFilesCount: context.workspace?.totalFiles || 0
     });
     return context;
   }
@@ -260,6 +304,29 @@ class AppController {
       });
     }
 
+    // Add workspace context
+    if (context.workspace && context.workspace.totalFiles > 0) {
+      prompt += `\n\nWorkspace files (${context.workspace.totalFiles} files, total size: ${this.formatFileSize(context.workspace.totalSize)}):`;
+      context.workspace.workspaceFiles.forEach(file => {
+        prompt += `\n- ${file.name} (${file.type}, ${file.extension}, ${this.formatFileSize(file.size)})`;
+      });
+      
+      // Add workspace file contents
+      if (context.workspaceFileContents && Object.keys(context.workspaceFileContents).length > 0) {
+        prompt += `\n\nWorkspace file contents:`;
+        Object.entries(context.workspaceFileContents).forEach(([fileId, fileData]) => {
+          prompt += `\n\n--- ${fileData.name} (${fileData.type}) ---\n${fileData.content}`;
+          
+          this.logger.debug('Workspace file content added to prompt', { 
+            fileId: fileId,
+            fileName: fileData.name,
+            contentLength: fileData.content.length,
+            contentPreview: fileData.content.substring(0, 200) + '...'
+          });
+        });
+      }
+    }
+
     if (context.recentConversation && context.recentConversation.length > 0) {
       prompt += `\n\nRecent conversation context: ${JSON.stringify(context.recentConversation)}`;
     }
@@ -267,10 +334,22 @@ class AppController {
     this.logger.debug('Prompt built', { 
       promptLength: prompt.length,
       hasFileContent: prompt.includes('File content:'),
+      hasWorkspaceContent: prompt.includes('Workspace file contents:'),
       promptPreview: prompt.substring(0, 300) + '...'
     });
 
     return prompt;
+  }
+
+  /**
+   * Format file size for display
+   */
+  formatFileSize(bytes) {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   }
 
   async performAction(actionType) {

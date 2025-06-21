@@ -38,19 +38,37 @@ class UIManager {
   }
 
   addMessage(message, type = 'user') {
-    const messageElement = document.createElement('p');
-    messageElement.className = this.config.get('ui.fadeInAnimation') ? 'fade-in' : '';
-    
-    if (type === 'user') {
-      messageElement.innerHTML = `<strong>You:</strong> ${this.escapeHtml(message)}`;
-    } else if (type === 'agent') {
-      messageElement.innerHTML = `<strong>Agent:</strong> ${this.escapeHtml(message)}`;
-    } else if (type === 'system') {
-      messageElement.className = 'system-message fade-in';
-      messageElement.innerHTML = `<strong>System:</strong> ${this.escapeHtml(message)}`;
-    } else if (type === 'error') {
-      messageElement.className = 'error fade-in';
-      messageElement.innerHTML = `<strong>Error:</strong> ${this.escapeHtml(message)}`;
+    if (!this.chatBox) return;
+
+    let messageElement;
+
+    if (type === 'user' || type === 'agent') {
+      messageElement = document.createElement('div');
+      messageElement.classList.add('message', `${type}-message`, 'fade-in');
+
+      const avatar = document.createElement('div');
+      avatar.classList.add('avatar');
+      avatar.textContent = type === 'user' ? 'You' : 'Ag';
+
+      const content = document.createElement('div');
+      content.classList.add('content');
+      
+      // Basic markdown parsing
+      let html = this.escapeHtml(message);
+      html = html.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>'); // Bold
+      html = html.replace(/\*(.*?)\*/g, '<em>$1</em>'); // Italic
+      html = html.replace(/```([\s\S]*?)```/g, '<pre><code>$1</code></pre>'); // Code blocks
+      html = html.replace(/`([^`]+)`/g, '<code>$1</code>'); // Inline code
+
+      content.innerHTML = html;
+
+      messageElement.appendChild(avatar);
+      messageElement.appendChild(content);
+
+    } else { // For system, error, success messages
+      messageElement = document.createElement('div');
+      messageElement.className = `${type}-message fade-in`;
+      messageElement.textContent = message;
     }
 
     this.chatBox.appendChild(messageElement);
@@ -206,7 +224,8 @@ class UIManager {
   }
 
   clearChat() {
-    this.chatBox.innerHTML = '<p><strong>Agent:</strong> Hello! I\'m your AI assistant. How can I help you today?</p>';
+    this.chatBox.innerHTML = '';
+    this.addMessage("Hello! I'm your AI assistant. How can I help you today?", 'agent');
     this.logger.debug('Chat cleared');
   }
 }

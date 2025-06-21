@@ -20,12 +20,28 @@ document.addEventListener('DOMContentLoaded', () => {
     const fileManager = new FileManager(config, logger, globalFunctions.appState);
     const fileUI = new FileUI(config, logger, fileManager, globalFunctions.uiManager);
     
+    // Initialize workspace manager for drag and drop functionality
+    const workspaceManager = new WorkspaceManager(config, logger, fileManager, globalFunctions.appController);
+    
     // Initialize file UI components
     fileUI.initialize();
     
-    // Make file management globally accessible
+    // Initialize workspace manager
+    workspaceManager.initialize();
+    
+    // Make components globally accessible
     window.fileManager = fileManager;
     window.fileUI = fileUI;
+    window.workspaceManager = workspaceManager;
+    
+    // Add debug functions
+    window.debugWorkspace = () => workspaceManager.debugWorkspaceState();
+    window.testDropZone = () => workspaceManager.testDropZone();
+    window.simulateFileDrop = (fileId) => workspaceManager.simulateFileDrop(fileId);
+    window.getDebugInfo = () => workspaceManager.getDebugInfo();
+    window.testDragAndDropChain = () => workspaceManager.testDragAndDropChain();
+    window.forceRefreshWorkspace = () => workspaceManager.forceRefreshWorkspace();
+    window.checkWorkspaceState = () => workspaceManager.checkWorkspaceState();
     
     logger.info('LLM-OS Application initialized successfully');
     
@@ -55,5 +71,5 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // Export for testing or external use
 if (typeof module !== 'undefined' && module.exports) {
-  module.exports = { AppState, OllamaAPI, UIManager, AppController, GlobalFunctions, AppConfig, Logger, FileManager, FileUI };
+  module.exports = { AppState, OllamaAPI, UIManager, AppController, GlobalFunctions, AppConfig, Logger, FileManager, FileUI, WorkspaceManager };
 } 

@@ -202,20 +202,21 @@
 .file-item {
   display: flex;
   align-items: center;
-  gap: 12px;
   padding: 12px;
   margin-bottom: 8px;
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid var(--glass-border);
-  border-radius: var(--border-radius-sm);
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
   cursor: pointer;
   transition: var(--transition);
+  position: relative;
 }
 
 .file-item:hover {
-  background: rgba(255, 255, 255, 0.08);
-  border-color: var(--accent-primary);
+  background: var(--bg-hover);
+  border-color: var(--primary-color);
   transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
 .file-item.selected {
@@ -271,6 +272,7 @@
   gap: 4px;
   opacity: 0;
   transition: var(--transition);
+  margin-right: 30px;
 }
 
 .file-item:hover .file-actions {
@@ -477,4 +479,404 @@
 .file-list::-webkit-scrollbar-thumb:hover,
 .text-content::-webkit-scrollbar-thumb:hover {
   background: rgba(255, 255, 255, 0.3);
+}
+
+/* Workspace Drop Zone Styles */
+.workspace-drop-zone {
+  position: relative;
+  min-height: 200px;
+  border: 2px dashed var(--glass-border);
+  border-radius: var(--border-radius);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: var(--transition);
+  background: var(--glass-bg);
+  backdrop-filter: var(--glass-blur);
+}
+
+.workspace-drop-zone.drag-over {
+  border-color: var(--accent-primary);
+  background: rgba(0, 122, 255, 0.1);
+  transform: scale(1.02);
+}
+
+.workspace-drop-zone.processing {
+  border-color: var(--warning);
+  background: rgba(255, 193, 7, 0.1);
+  transform: scale(1.01);
+}
+
+.workspace-drop-zone.processing .drop-zone-overlay {
+  background: rgba(255, 193, 7, 0.1);
+  border-color: var(--warning);
+}
+
+.drop-zone-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 122, 255, 0.1);
+  border: 3px dashed var(--accent-primary);
+  border-radius: var(--border-radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+  backdrop-filter: var(--glass-blur);
+}
+
+.drop-zone-content {
+  text-align: center;
+  color: var(--accent-primary);
+  padding: 20px;
+}
+
+.drop-icon {
+  font-size: 48px;
+  margin-bottom: 10px;
+}
+
+.drop-zone-content h3 {
+  margin: 0 0 10px 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.drop-zone-content p {
+  margin: 0;
+  font-size: 14px;
+  opacity: 0.8;
+  color: var(--text-secondary);
+}
+
+.drop-hint {
+  margin-top: 10px !important;
+  font-weight: 600;
+  color: var(--text-primary) !important;
+  background: rgba(0, 122, 255, 0.8);
+  padding: 8px 16px;
+  border-radius: 20px;
+  display: inline-block;
+}
+
+.workspace-content {
+  padding: 20px;
+  position: relative;
+  z-index: 1;
+}
+
+.workspace-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  padding-bottom: 15px;
+  border-bottom: 1px solid var(--glass-border);
+}
+
+.workspace-header h3 {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.workspace-controls {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.workspace-test-btn {
+  padding: 8px 16px;
+  border: none;
+  border-radius: var(--border-radius-sm);
+  background: var(--accent-secondary);
+  color: var(--text-primary);
+  cursor: pointer;
+  font-size: 14px;
+  transition: var(--transition);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.workspace-test-btn:hover {
+  background: var(--accent-primary);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 122, 255, 0.3);
+}
+
+.clear-workspace-btn {
+  padding: 8px 16px;
+  border: none;
+  border-radius: var(--border-radius-sm);
+  background: var(--danger);
+  color: var(--text-primary);
+  cursor: pointer;
+  font-size: 14px;
+  transition: var(--transition);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.clear-workspace-btn:hover {
+  background: rgba(200, 35, 51, 0.8);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(255, 59, 48, 0.3);
+}
+
+.clear-workspace-btn:active {
+  transform: translateY(0);
+}
+
+.workspace-files {
+  margin-top: 20px;
+  border-top: 1px solid var(--glass-border);
+  padding-top: 20px;
+}
+
+.workspace-file-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px;
+  margin-bottom: 8px;
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--border-radius-sm);
+  transition: var(--transition);
+  backdrop-filter: var(--glass-blur);
+}
+
+.workspace-file-item:hover {
+  border-color: var(--accent-primary);
+  box-shadow: var(--glass-shadow);
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.workspace-file-info {
+  display: flex;
+  align-items: center;
+  flex: 1;
+}
+
+.workspace-file-icon {
+  font-size: 24px;
+  margin-right: 12px;
+  width: 30px;
+  text-align: center;
+  color: var(--text-primary);
+}
+
+.workspace-file-details {
+  flex: 1;
+}
+
+.workspace-file-name {
+  font-weight: 600;
+  margin-bottom: 4px;
+  color: var(--text-primary);
+}
+
+.workspace-file-meta {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.workspace-file-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.workspace-file-btn {
+  padding: 6px 12px;
+  border: none;
+  border-radius: var(--border-radius-sm);
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--text-primary);
+  cursor: pointer;
+  font-size: 12px;
+  transition: var(--transition);
+  border: 1px solid var(--glass-border);
+}
+
+.workspace-file-btn:hover {
+  background: var(--accent-primary);
+  color: var(--text-primary);
+  border-color: transparent;
+}
+
+.workspace-file-btn.primary {
+  background: var(--accent-primary);
+  color: var(--text-primary);
+  border-color: transparent;
+}
+
+.workspace-file-btn.primary:hover {
+  background: rgba(0, 86, 179, 0.8);
+}
+
+.workspace-file-btn.danger {
+  background: var(--danger);
+  color: var(--text-primary);
+  border-color: transparent;
+}
+
+.workspace-file-btn.danger:hover {
+  background: rgba(200, 35, 51, 0.8);
+}
+
+.workspace-no-files {
+  text-align: center;
+  color: var(--text-secondary);
+  font-style: italic;
+  padding: 20px;
+}
+
+/* Animation for file items */
+.workspace-file-item {
+  animation: slideIn 0.3s ease;
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* File item dragging state */
+.file-item.dragging {
+  opacity: 0.5;
+  transform: scale(0.95);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+  cursor: grabbing;
+}
+
+.file-item.dragging .file-actions {
+  pointer-events: none;
+}
+
+/* Drag cursor for draggable items */
+.file-item[draggable="true"] {
+  cursor: grab;
+}
+
+.file-item[draggable="true"]:active {
+  cursor: grabbing;
+}
+
+/* Drag handle for file items */
+.file-drag-handle {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  font-size: 16px;
+  opacity: 0.6;
+  cursor: grab;
+  transition: opacity 0.2s ease;
+  z-index: 2;
+}
+
+.file-item:hover .file-drag-handle {
+  opacity: 1;
+}
+
+.file-item.dragging .file-drag-handle {
+  opacity: 0.3;
+  cursor: grabbing;
+}
+
+/* Browser instructions */
+.browser-instructions {
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--border-radius-sm);
+  padding: 10px 15px;
+  margin: 10px 0;
+  font-size: 14px;
+  color: var(--text-primary);
+  backdrop-filter: var(--glass-blur);
+}
+
+.browser-instructions p {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-secondary);
+}
+
+.browser-instructions strong {
+  color: var(--accent-primary);
+}
+
+/* Workspace tab highlight during drag */
+.tab-btn[data-tab="workspace"].drag-target {
+  background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+  color: var(--text-primary);
+  transform: scale(1.05);
+  box-shadow: 0 4px 12px rgba(0, 122, 255, 0.4);
+  position: relative;
+  z-index: 10;
+}
+
+.tab-btn[data-tab="workspace"].drag-target::after {
+  content: " 📁";
+  animation: pulse 1s infinite;
+}
+
+.tab-btn[data-tab="workspace"].drag-target::before {
+  content: "Drop here";
+  position: absolute;
+  top: -30px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--accent-primary);
+  color: var(--text-primary);
+  padding: 4px 8px;
+  border-radius: var(--border-radius-sm);
+  font-size: 12px;
+  white-space: nowrap;
+  z-index: 20;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+/* Workspace tab content highlight during drag */
+#workspaceTab.drag-target-active {
+  background: linear-gradient(135deg, rgba(0, 122, 255, 0.1), rgba(88, 86, 214, 0.1));
+  border: 2px dashed var(--accent-primary);
+  border-radius: var(--border-radius);
+  position: relative;
+}
+
+#workspaceTab.drag-target-active::before {
+  content: "Drop file here to add to workspace";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: rgba(0, 122, 255, 0.9);
+  color: var(--text-primary);
+  padding: 12px 20px;
+  border-radius: var(--border-radius-sm);
+  font-size: 16px;
+  font-weight: 600;
+  z-index: 100;
+  pointer-events: none;
+  white-space: nowrap;
 } 

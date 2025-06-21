@@ -72,6 +72,9 @@ class FileUI {
           <button class="browser-btn" onclick="fileUI.clearAllFiles()">🗑️</button>
         </div>
       </div>
+      <div class="browser-instructions">
+        <p>💡 <strong>Tip:</strong> Drag files to the Workspace tab to chat with their content!</p>
+      </div>
       <div class="file-search-container">
         <input type="text" id="fileSearch" placeholder="Search files..." class="file-search">
         <select id="categoryFilter" class="category-filter">
@@ -269,7 +272,11 @@ class FileUI {
     const date = new Date(file.uploadDate).toLocaleDateString();
     
     return `
-      <div class="file-item" data-file-id="${file.id}" onclick="fileUI.openFile('${file.id}')">
+      <div class="file-item" data-file-id="${file.id}" 
+           onclick="fileUI.openFile('${file.id}')"
+           draggable="true"
+           ondragstart="fileUI.handleFileDragStart(event, '${file.id}')"
+           ondragend="fileUI.handleFileDragEnd(event)">
         <div class="file-icon">${icon}</div>
         <div class="file-details">
           <div class="file-name">${file.name}</div>
@@ -286,6 +293,7 @@ class FileUI {
           <button class="file-action-btn" onclick="event.stopPropagation(); performFileAction('agent', '${file.id}')" title="Agent mode">🤖</button>
           <button class="file-action-btn" onclick="event.stopPropagation(); fileUI.deleteFile('${file.id}')" title="Delete">🗑️</button>
         </div>
+        <div class="file-drag-handle" title="Drag to workspace">📁</div>
       </div>
     `;
   }
@@ -530,6 +538,230 @@ class FileUI {
   getSelectedFileInfo() {
     if (!this.selectedFileId) return null;
     return this.fileManager.getFile(this.selectedFileId);
+  }
+
+  /**
+   * Handle file drag start from file browser
+   */
+  handleFileDragStart(event, fileId) {
+    const file = this.fileManager.getFile(fileId);
+    if (!file) {
+      this.logger.error('File not found for drag start', { fileId });
+      return;
+    }
+
+    this.logger.debug('Starting file drag', { 
+      fileId, 
+      fileName: file.name,
+      fileType: file.category 
+    });
+
+    // Set drag data in multiple formats for better compatibility
+    const dragData = {
+      type: 'file-from-browser',
+      fileId: fileId,
+      fileName: file.name,
+      fileType: file.category
+    };
+
+    try {
+      // Set data in multiple formats
+      event.dataTransfer.setData('text/plain', fileId);
+      event.dataTransfer.setData('application/json', JSON.stringify(dragData));
+      event.dataTransfer.setData('text/html', `<div>${file.name}</div>`);
+      
+      // Set effect allowed
+      event.dataTransfer.effectAllowed = 'copy';
+      
+      this.logger.debug('Drag data set successfully', { 
+        fileId, 
+        dataTypes: Array.from(event.dataTransfer.types) 
+      });
+    } catch (error) {
+      this.logger.error('Failed to set drag data', { error: error.message });
+    }
+
+    // Add visual feedback
+    event.target.classList.add('dragging');
+    
+    // Highlight workspace tab to show it's a valid drop target
+    this.highlightWorkspaceTab(true);
+    
+    this.logger.debug('File drag started successfully', { 
+      fileId, 
+      fileName: file.name,
+      fileType: file.category 
+    });
+  }
+
+  /**
+   * Handle file drag end from file browser
+   */
+  handleFileDragEnd(event) {
+    // Remove visual feedback
+    event.target.classList.remove('dragging');
+    
+    // Remove workspace tab highlight
+    this.highlightWorkspaceTab(false);
+    
+    this.logger.debug('File drag ended');
+  }
+
+  /**
+   * Highlight workspace tab during drag
+   */
+  highlightWorkspaceTab(highlight) {
+    const workspaceTab = document.querySelector('.tab-btn[data-tab="workspace"]');
+    if (workspaceTab) {
+      if (highlight) {
+        workspaceTab.classList.add('drag-target');
+      } else {
+        workspaceTab.classList.remove('drag-target');
+      }
+    }
+  }
+
+  /**
+   * Switch to workspace tab
+   */
+  switchToWorkspaceTab() {
+    if (window.switchTab) {
+      window.switchTab('workspace');
+      this.logger.debug('Switched to workspace tab for file drop');
+    } else {
+      // Fallback to direct click
+      const workspaceTab = document.querySelector('.tab-btn[data-tab="workspace"]');
+      if (workspaceTab) {
+        workspaceTab.click();
+        this.logger.debug('Switched to workspace tab for file drop (fallback method)');
+      }
+    }
+  }
+
+  /**
+   * Add file to workspace from file browser
+   */
+  async addFileToWorkspaceFromBrowser(fileId) {
+    this.logger.info('Adding file to workspace from browser', { fileId });
+    
+    const file = this.fileManager.getFile(fileId);
+    if (!file) {
+      this.logger.error('File not found in file manager', { fileId });
+      this.showError('File not found');
+      return;
+    }
+
+    this.logger.debug('File found in file manager', { 
+      fileId, 
+      fileName: file.name,
+      fileSize: file.size,
+      fileCategory: file.category 
+    });
+
+    // Get the file blob
+    const fileBlob = this.fileManager.getFileBlob(fileId);
+    if (!fileBlob) {
+      this.logger.error('File blob not available', { fileId });
+      this.showError('File content not available');
+      return;
+    }
+
+    this.logger.debug('File blob retrieved', { 
+      fileId, 
+      blobSize: fileBlob.size,
+      blobType: fileBlob.type 
+    });
+
+    // Create a new File object from the blob
+    const newFile = new File([fileBlob], file.name, {
+      type: fileBlob.type || this.getMimeType(file.extension)
+    });
+
+    this.logger.debug('New File object created', { 
+      fileName: newFile.name,
+      fileSize: newFile.size,
+      fileType: newFile.type 
+    });
+
+    // Add to workspace using WorkspaceManager
+    if (window.workspaceManager) {
+      try {
+        const result = await window.workspaceManager.addFileToWorkspace(newFile);
+        this.logger.info('File added to workspace from browser successfully', { 
+          fileId, 
+          fileName: file.name,
+          result 
+        });
+        return result;
+      } catch (error) {
+        this.logger.error('Failed to add file to workspace from browser', { 
+          fileId, 
+          error: error.message,
+          stack: error.stack 
+        });
+        this.showError(`Failed to add file to workspace: ${error.message}`);
+        throw error;
+      }
+    } else {
+      this.logger.error('WorkspaceManager not available');
+      this.showError('Workspace manager not available');
+      throw new Error('WorkspaceManager not available');
+    }
+  }
+
+  /**
+   * Get MIME type from file extension
+   */
+  getMimeType(extension) {
+    const mimeTypes = {
+      '.txt': 'text/plain',
+      '.md': 'text/markdown',
+      '.py': 'text/x-python',
+      '.js': 'application/javascript',
+      '.html': 'text/html',
+      '.css': 'text/css',
+      '.json': 'application/json',
+      '.xml': 'application/xml',
+      '.csv': 'text/csv',
+      '.ts': 'application/typescript',
+      '.jsx': 'text/jsx',
+      '.tsx': 'text/tsx',
+      '.vue': 'text/vue',
+      '.php': 'application/x-httpd-php',
+      '.java': 'text/x-java-source',
+      '.cpp': 'text/x-c++src',
+      '.c': 'text/x-csrc',
+      '.h': 'text/x-chdr',
+      '.rb': 'text/x-ruby',
+      '.go': 'text/x-go',
+      '.rs': 'text/x-rust',
+      '.swift': 'text/x-swift',
+      '.kt': 'text/x-kotlin',
+      '.scala': 'text/x-scala',
+      '.r': 'text/x-r',
+      '.sql': 'text/x-sql',
+      '.sh': 'text/x-sh',
+      '.bash': 'text/x-sh',
+      '.yaml': 'application/x-yaml',
+      '.yml': 'application/x-yaml',
+      '.toml': 'text/x-toml',
+      '.ini': 'text/plain',
+      '.conf': 'text/plain',
+      '.log': 'text/plain',
+      '.png': 'image/png',
+      '.jpg': 'image/jpeg',
+      '.jpeg': 'image/jpeg',
+      '.gif': 'image/gif',
+      '.bmp': 'image/bmp',
+      '.svg': 'image/svg+xml',
+      '.webp': 'image/webp',
+      '.pdf': 'application/pdf',
+      '.doc': 'application/msword',
+      '.docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      '.rtf': 'application/rtf'
+    };
+
+    return mimeTypes[extension] || 'application/octet-stream';
   }
 }
 
