@@ -331,15 +331,32 @@ class FileManager {
       } else if (fileObj.category === 'image') {
         this.logger.debug('Processing image file', { fileId, fileName: file.name });
         fileObj.preview = await this.generateImagePreview(file);
+        // For images, store a description that can be used by AI
+        fileObj.content = `Image file: ${fileObj.name} (${this.formatFileSize(fileObj.size)}) - Image content cannot be directly read as text, but the file contains visual data.`;
       } else if (fileObj.category === 'document') {
         this.logger.debug('Processing document file', { fileId, fileName: file.name });
-        fileObj.preview = `Document: ${fileObj.name} (${this.formatFileSize(fileObj.size)})`;
+        // Try to extract text from PDF files
+        if (fileObj.extension === '.pdf') {
+          try {
+            fileObj.content = await this.extractTextFromPDF(file);
+            fileObj.preview = this.generateTextPreview(fileObj.content);
+            this.logger.info('PDF text extracted successfully', { fileId, contentLength: fileObj.content.length });
+          } catch (pdfError) {
+            this.logger.warn('Failed to extract text from PDF, using fallback', { fileId, error: pdfError.message });
+            fileObj.content = `PDF Document: ${fileObj.name} (${this.formatFileSize(fileObj.size)}) - Text extraction failed, but this is a PDF document that may contain text, images, and other content.`;
+            fileObj.preview = `PDF Document: ${fileObj.name} (${this.formatFileSize(fileObj.size)})`;
+          }
+        } else {
+          fileObj.content = `Document: ${fileObj.name} (${this.formatFileSize(fileObj.size)}) - This is a ${fileObj.extension} document that may contain text and other content.`;
+          fileObj.preview = `Document: ${fileObj.name} (${this.formatFileSize(fileObj.size)})`;
+        }
       } else {
         this.logger.warn('Unknown file category', { fileId, category: fileObj.category });
+        fileObj.content = `File: ${fileObj.name} (${this.formatFileSize(fileObj.size)})`;
         fileObj.preview = `File: ${fileObj.name} (${this.formatFileSize(fileObj.size)})`;
       }
       
-      this.logger.info('File processed successfully', { fileId, category: fileObj.category });
+      this.logger.info('File processed successfully', { fileId, category: fileObj.category, hasContent: !!fileObj.content });
     } catch (error) {
       this.logger.error('Failed to process file', { 
         fileId, 
@@ -385,6 +402,58 @@ class FileManager {
   }
 
   /**
+   * Extract text from PDF file
+   */
+  async extractTextFromPDF(file) {
+    return new Promise((resolve, reject) => {
+      // Check if PDF.js is available (we'll add this library)
+      if (typeof pdfjsLib !== 'undefined') {
+        this.extractTextWithPDFJS(file, resolve, reject);
+      } else {
+        // Fallback: try to read as text (might work for some PDFs)
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          try {
+            const content = e.target.result;
+            // Basic check if content looks like text
+            if (content && content.length > 0 && !content.includes('')) {
+              resolve(content);
+            } else {
+              reject(new Error('PDF content could not be extracted as text'));
+            }
+          } catch (error) {
+            reject(new Error('Failed to process PDF content'));
+          }
+        };
+        reader.onerror = () => reject(new Error('Failed to read PDF file'));
+        reader.readAsText(file);
+      }
+    });
+  }
+
+  /**
+   * Extract text using PDF.js library
+   */
+  async extractTextWithPDFJS(file, resolve, reject) {
+    try {
+      const arrayBuffer = await file.arrayBuffer();
+      const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+      let fullText = '';
+      
+      for (let i = 1; i <= pdf.numPages; i++) {
+        const page = await pdf.getPage(i);
+        const textContent = await page.getTextContent();
+        const pageText = textContent.items.map(item => item.str).join(' ');
+        fullText += pageText + '\n';
+      }
+      
+      resolve(fullText.trim());
+    } catch (error) {
+      reject(new Error(`PDF.js extraction failed: ${error.message}`));
+    }
+  }
+
+  /**
    * Get file from ID
    */
   async getFileFromId(fileId) {
@@ -407,14 +476,31 @@ class FileManager {
    */
   getFileContent(fileId) {
     const file = this.files.get(fileId);
-    if (!file) return null;
+    if (!file) {
+      this.logger.warn('File not found for content retrieval', { fileId });
+      return null;
+    }
+    
+    this.logger.debug('Getting file content for AI', { 
+      fileId, 
+      fileName: file.name, 
+      category: file.category,
+      hasContent: !!file.content,
+      contentLength: file.content?.length || 0
+    });
     
     if (file.category === 'text') {
-      return file.content;
+      return file.content || `Text file: ${file.name} (${this.formatFileSize(file.size)}) - Content not available.`;
     } else if (file.category === 'image') {
-      return `Image file: ${file.name} (${this.formatFileSize(file.size)})`;
+      return file.content || `Image file: ${file.name} (${this.formatFileSize(file.size)}) - Image content cannot be directly read as text.`;
+    } else if (file.category === 'document') {
+      if (file.extension === '.pdf') {
+        return file.content || `PDF Document: ${file.name} (${this.formatFileSize(file.size)}) - PDF text extraction was not successful, but this document may contain text, images, and other content.`;
+      } else {
+        return file.content || `Document: ${file.name} (${this.formatFileSize(file.size)}) - This is a ${file.extension} document.`;
+      }
     } else {
-      return `Document file: ${file.name} (${this.formatFileSize(file.size)})`;
+      return file.content || `File: ${file.name} (${this.formatFileSize(file.size)})`;
     }
   }
 

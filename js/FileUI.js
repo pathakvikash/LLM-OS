@@ -361,11 +361,29 @@ class FileUI {
           <img src="${file.preview}" alt="${file.name}" style="max-width: 100%; height: auto;">
         </div>
       `;
+    } else if (file.category === 'document') {
+      if (file.extension === '.pdf' && file.content) {
+        // Show extracted PDF text content
+        fileDisplay.innerHTML = `
+          <div class="text-content">
+            <h4>Extracted PDF Content:</h4>
+            <pre><code>${this.escapeHtml(file.content)}</code></pre>
+          </div>
+        `;
+      } else {
+        fileDisplay.innerHTML = `
+          <div class="document-content">
+            <p>Document preview not available for ${file.extension} files.</p>
+            <p>File: ${file.name} (${this.fileManager.formatFileSize(file.size)})</p>
+            ${file.content ? `<p><strong>Content:</strong> ${this.escapeHtml(file.content.substring(0, 500))}...</p>` : ''}
+          </div>
+        `;
+      }
     } else {
       fileDisplay.innerHTML = `
         <div class="document-content">
-          <p>Document preview not available for ${file.extension} files.</p>
           <p>File: ${file.name} (${this.fileManager.formatFileSize(file.size)})</p>
+          ${file.content ? `<p><strong>Content:</strong> ${this.escapeHtml(file.content)}</p>` : ''}
         </div>
       `;
     }

@@ -13,6 +13,13 @@
   <link rel="stylesheet" href="css/chat-section.css">
   <link rel="stylesheet" href="css/peek-bars.css">
   <link rel="stylesheet" href="css/utilities.css">
+  
+  <!-- PDF.js library for PDF text extraction -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <script>
+    // Set PDF.js worker path
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+  </script>
 </head>
 <body>
   <div class="app-container">

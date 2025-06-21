@@ -148,8 +148,16 @@ class AppController {
 
     // Add file context if FileManager is available
     if (window.fileManager && window.fileUI) {
+      this.logger.debug('FileManager and FileUI available, building file context');
+      
       const selectedFileInfo = window.fileUI.getSelectedFileInfo();
       if (selectedFileInfo) {
+        this.logger.debug('Selected file found', { 
+          fileId: selectedFileInfo.id,
+          fileName: selectedFileInfo.name,
+          category: selectedFileInfo.category 
+        });
+        
         context.selectedFile = {
           name: selectedFileInfo.name,
           type: selectedFileInfo.category,
@@ -158,21 +166,34 @@ class AppController {
         };
         
         const fileContent = window.fileManager.getFileContent(selectedFileInfo.id);
+        this.logger.debug('File content retrieved', { 
+          hasContent: !!fileContent,
+          contentLength: fileContent?.length || 0,
+          contentPreview: fileContent?.substring(0, 100) + '...' || 'No content'
+        });
+        
         if (fileContent) {
           context.fileContent = fileContent;
         }
+      } else {
+        this.logger.debug('No selected file found');
       }
       
       // Add all files info for context
       const allFiles = window.fileManager.getAllFiles();
       if (allFiles.length > 0) {
+        this.logger.debug('Available files found', { count: allFiles.length });
         context.availableFiles = allFiles.map(file => ({
           name: file.name,
           type: file.category,
           extension: file.extension,
           size: file.size
         }));
+      } else {
+        this.logger.debug('No files available');
       }
+    } else {
+      this.logger.debug('FileManager or FileUI not available');
     }
 
     const recentMessages = this.state.getConversationContext();
@@ -184,7 +205,12 @@ class AppController {
       }));
     }
 
-    this.logger.debug('Context built', { contextKeys: Object.keys(context) });
+    this.logger.debug('Context built', { 
+      contextKeys: Object.keys(context),
+      hasSelectedFile: !!context.selectedFile,
+      hasFileContent: !!context.fileContent,
+      fileContentLength: context.fileContent?.length || 0
+    });
     return context;
   }
 
@@ -217,6 +243,13 @@ class AppController {
       prompt += `\n\nSelected file: ${context.selectedFile.name} (${context.selectedFile.type}, ${context.selectedFile.extension})`;
       if (context.fileContent) {
         prompt += `\n\nFile content:\n${context.fileContent}`;
+        this.logger.debug('File content added to prompt', { 
+          fileName: context.selectedFile.name,
+          contentLength: context.fileContent.length,
+          contentPreview: context.fileContent.substring(0, 200) + '...'
+        });
+      } else {
+        this.logger.warn('No file content available for prompt', { fileName: context.selectedFile.name });
       }
     }
 
@@ -230,6 +263,12 @@ class AppController {
     if (context.recentConversation && context.recentConversation.length > 0) {
       prompt += `\n\nRecent conversation context: ${JSON.stringify(context.recentConversation)}`;
     }
+
+    this.logger.debug('Prompt built', { 
+      promptLength: prompt.length,
+      hasFileContent: prompt.includes('File content:'),
+      promptPreview: prompt.substring(0, 300) + '...'
+    });
 
     return prompt;
   }
