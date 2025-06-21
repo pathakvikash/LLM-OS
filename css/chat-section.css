@@ -30,23 +30,73 @@
 
 .chat-header {
   display: flex;
-  align-items: center;
   justify-content: space-between;
-  padding: 18px  18px 0;
-  border-bottom: 1px solid var(--glass-border);
+  align-items: center;
+  padding: 10px 15px;
+  background: var(--header-bg);
+  border-bottom: 1px solid var(--border-color);
+  border-radius: 8px 8px 0 0;
 }
 
 .chat-header h3 {
-  font-size: 18px;
-  font-weight: 600;
+  margin: 0;
   color: var(--text-primary);
-  letter-spacing: -0.2px;
+  font-size: 1.1em;
+  font-weight: 600;
 }
 
 .header-controls {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 10px;
+}
+
+.connection-status {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.85em;
+  padding: 4px 8px;
+  border-radius: 12px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.connection-status:hover {
+  background: var(--bg-hover);
+}
+
+.status-indicator {
+  font-size: 1.2em;
+  transition: color 0.3s ease;
+}
+
+.status-indicator.connected {
+  color: #10b981;
+}
+
+.status-indicator.connecting {
+  color: #f59e0b;
+  animation: pulse 1.5s infinite;
+}
+
+.status-indicator.disconnected {
+  color: #ef4444;
+}
+
+.status-indicator.error {
+  color: #dc2626;
+}
+
+.status-text {
+  font-weight: 500;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
 }
 
 .chat-status {

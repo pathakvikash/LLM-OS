@@ -17,42 +17,6 @@ class AppConfig {
         }
       },
 
-      // Web Search Configuration
-      webSearch: {
-        providers: {
-          duckduckgo: {
-            enabled: true,
-            rateLimit: { requests: 50, window: 60000 }
-          },
-          google: {
-            enabled: false,
-            apiKey: this.getEnvVar('GOOGLE_API_KEY', ''),
-            searchEngineId: this.getEnvVar('GOOGLE_SEARCH_ENGINE_ID', ''),
-            rateLimit: { requests: 100, window: 60000 }
-          },
-          bing: {
-            enabled: false,
-            apiKey: this.getEnvVar('BING_API_KEY', ''),
-            rateLimit: { requests: 50, window: 60000 }
-          }
-        },
-        cache: {
-          enabled: true,
-          ttl: 3600000, // 1 hour
-          maxSize: 1000
-        },
-        extraction: {
-          enabled: true,
-          maxContentLength: 50000,
-          timeout: 10000
-        },
-        ai: {
-          enabled: true,
-          analysisPrompt: 'Analyze the following search results and provide insights:',
-          maxResultsToAnalyze: 5
-        }
-      },
-
       // UI Configuration
       ui: {
         maxConversationHistory: 20,
@@ -100,21 +64,6 @@ class AppConfig {
 
     // Load custom configuration if available
     this.config = this.loadCustomConfig();
-  }
-
-  getEnvVar(name, defaultValue = '') {
-    // Check if we're in a browser environment
-    if (typeof window !== 'undefined') {
-      // In browser, try to get from window object or localStorage
-      return window[name] || localStorage.getItem(name) || defaultValue;
-    }
-    
-    // In Node.js environment
-    if (typeof process !== 'undefined' && process.env) {
-      return process.env[name] || defaultValue;
-    }
-    
-    return defaultValue;
   }
 
   loadCustomConfig() {

@@ -23,27 +23,16 @@ document.addEventListener('DOMContentLoaded', () => {
     // Initialize workspace manager for drag and drop functionality
     const workspaceManager = new WorkspaceManager(config, logger, fileManager, globalFunctions.appController);
     
-    // Initialize web search system
-    const webSearchManager = new WebSearchManager(config, logger, globalFunctions.ollamaAPI);
-    
-    // Initialize web search UI
-    const webSearchUI = new WebSearchUI(config, logger, webSearchManager);
-    
     // Initialize file UI components
     fileUI.initialize();
     
     // Initialize workspace manager
     workspaceManager.initialize();
     
-    // Initialize web search UI
-    webSearchUI.initialize();
-    
     // Make components globally accessible
     window.fileManager = fileManager;
     window.fileUI = fileUI;
     window.workspaceManager = workspaceManager;
-    window.webSearchManager = webSearchManager;
-    window.webSearchUI = webSearchUI;
     
     // Add debug functions
     window.debugWorkspace = () => workspaceManager.debugWorkspaceState();
@@ -53,22 +42,6 @@ document.addEventListener('DOMContentLoaded', () => {
     window.testDragAndDropChain = () => workspaceManager.testDragAndDropChain();
     window.forceRefreshWorkspace = () => workspaceManager.forceRefreshWorkspace();
     window.checkWorkspaceState = () => workspaceManager.checkWorkspaceState();
-    
-    // Add web search debug functions
-    window.testWebSearch = async (query) => {
-      try {
-        const results = await webSearchManager.performAISearch(query);
-        console.log('Web search results:', results);
-        return results;
-      } catch (error) {
-        console.error('Web search test failed:', error);
-        throw error;
-      }
-    };
-    
-    window.getWebSearchStats = () => webSearchManager.getSearchStats();
-    window.clearWebSearchCache = () => webSearchManager.webSearchAPI.clearCache();
-    window.getWebSearchHistory = () => webSearchManager.getSearchHistory();
     
     logger.info('LLM-OS Application initialized successfully');
     
@@ -98,8 +71,5 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // Export for testing or external use
 if (typeof module !== 'undefined' && module.exports) {
-  module.exports = { AppState, OllamaAPI, UIManager, AppController, GlobalFunctions, AppConfig, Logger, FileManager, FileUI, WorkspaceManager, WebSearchAPI, WebSearchManager };
-} else {
-  window.WebSearchAPI = WebSearchAPI;
-  window.WebSearchManager = WebSearchManager;
+  module.exports = { AppState, OllamaAPI, UIManager, AppController, GlobalFunctions, AppConfig, Logger, FileManager, FileUI, WorkspaceManager };
 } 

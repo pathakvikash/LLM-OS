@@ -16,6 +16,7 @@ class AppController {
     this.loadConversationHistory();
     this.updateUI();
     this.applySavedUIState();
+    this.initializeConnectionStatus();
     
     this.logger.info('AppController initialized successfully');
   }
@@ -806,6 +807,72 @@ ${newContent.substring(0, 200)}${newContent.length > 200 ? '...' : ''}`;
     this.state.resetModel();
     this.logger.logUserAction('model_reset');
     location.reload();
+  }
+
+  initializeConnectionStatus() {
+    this.updateConnectionStatus('connecting', 'Connecting...');
+    
+    // Test connection on initialization
+    this.testConnection();
+    
+    // Set up periodic connection monitoring
+    this.connectionMonitor = setInterval(() => {
+      this.testConnection();
+    }, 30000); // Check every 30 seconds
+    
+    // Add click handler for connection status
+    const connectionStatus = document.getElementById('connectionStatus');
+    if (connectionStatus) {
+      connectionStatus.addEventListener('click', () => {
+        this.testConnection(true); // Force test
+      });
+    }
+  }
+
+  async testConnection(force = false) {
+    try {
+      const result = await this.ollama.testConnection();
+      
+      if (result.success) {
+        this.updateConnectionStatus('connected', 'Connected');
+        this.logger.debug('Connection test successful');
+      } else {
+        this.updateConnectionStatus('error', 'Connection Error');
+        this.logger.error('Connection test failed', result.error);
+      }
+    } catch (error) {
+      this.updateConnectionStatus('disconnected', 'Disconnected');
+      this.logger.error('Connection test error', error);
+    }
+  }
+
+  updateConnectionStatus(status, text) {
+    const indicator = document.getElementById('statusIndicator');
+    const statusText = document.getElementById('statusText');
+    
+    if (indicator && statusText) {
+      // Remove all status classes
+      indicator.classList.remove('connected', 'connecting', 'disconnected', 'error');
+      
+      // Add current status class
+      indicator.classList.add(status);
+      
+      // Update text
+      statusText.textContent = text;
+      
+      this.logger.debug('Connection status updated', { status, text });
+    }
+  }
+
+  cleanup() {
+    if (this.connectionMonitor) {
+      clearInterval(this.connectionMonitor);
+      this.connectionMonitor = null;
+    }
+  }
+
+  get ollamaAPI() {
+    return this.ollama;
   }
 }
 

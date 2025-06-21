@@ -15,13 +15,7 @@ app.use(cors({
 // Serve static files
 app.use(express.static('.'));
 
-// Add JSON body parsing middleware
-app.use(express.json());
-
-// Add web search routes BEFORE the proxy middleware
-app.use('/api/web-search', require('./server/web-search.js'));
-
-// Proxy remaining /api/* requests to Ollama
+// Proxy all /api/* requests to Ollama
 app.use('/api', createProxyMiddleware({
   target: 'http://localhost:11434',
   changeOrigin: true,
@@ -41,5 +35,4 @@ app.use('/api', createProxyMiddleware({
 app.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`);
   console.log(`Proxying /api requests to http://localhost:11434`);
-  console.log(`Web search API available at /api/web-search`);
 }); 

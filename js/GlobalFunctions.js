@@ -67,6 +67,16 @@ class GlobalFunctions {
     
     // Debug functions
     window.checkModels = () => this.app.checkModels();
+    window.testConnection = async () => {
+      if (this.app && this.app.ollamaAPI) {
+        const result = await this.app.ollamaAPI.testConnection();
+        console.log('Connection test result:', result);
+        return result;
+      } else {
+        console.error('OllamaAPI not available');
+        return { success: false, error: 'OllamaAPI not available' };
+      }
+    };
     
     this.logger.debug('Global functions setup completed');
   }

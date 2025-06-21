@@ -75,7 +75,18 @@ class OllamaAPI {
       
       this.logger.error('Ollama API error', error);
       
-      if (error.message.includes('CORS') || error.message.includes('preflight')) {
+      // Enhanced error handling for network issues
+      if (error.name === 'TypeError' && error.message.includes('Failed to fetch')) {
+        if (error.message.includes('ERR_INTERNET_DISCONNECTED')) {
+          throw new Error('Network connection issue detected. Please check your internet connection and try refreshing the page.');
+        } else if (error.message.includes('ERR_CONNECTION_REFUSED')) {
+          throw new Error('Cannot connect to the server. Please ensure the server is running on http://localhost:3000');
+        } else if (error.message.includes('ERR_NAME_NOT_RESOLVED')) {
+          throw new Error('DNS resolution failed. Please check your network connection.');
+        } else {
+          throw new Error(`Network error: ${error.message}. Please try refreshing the page or check your connection.`);
+        }
+      } else if (error.message.includes('CORS') || error.message.includes('preflight')) {
         throw new Error(this.config.getErrorPrompt('corsError'));
       }
       
@@ -151,6 +162,39 @@ class OllamaAPI {
     } catch (error) {
       this.logger.error('Error validating model', error);
       return currentModel;
+    }
+  }
+
+  async testConnection() {
+    try {
+      this.logger.info('Testing connection to Ollama API...');
+      
+      const response = await fetch(this.modelsEndpoint, {
+        method: 'GET',
+        headers: {
+          'Accept': 'application/json',
+        },
+        mode: 'cors',
+        credentials: 'omit'
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        this.logger.info('Connection test successful', { 
+          endpoint: this.modelsEndpoint,
+          modelCount: data.models?.length || 0 
+        });
+        return { success: true, models: data.models || [] };
+      } else {
+        this.logger.error('Connection test failed', { 
+          status: response.status, 
+          statusText: response.statusText 
+        });
+        return { success: false, error: `HTTP ${response.status}: ${response.statusText}` };
+      }
+    } catch (error) {
+      this.logger.error('Connection test failed with network error', error);
+      return { success: false, error: error.message };
     }
   }
 }
