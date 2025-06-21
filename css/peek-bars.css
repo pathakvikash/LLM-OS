@@ -68,22 +68,27 @@
 }
 
 /* Chat Section Peek Bar */
-.chat-section.collapsed + .chat-peek {
+.chat-section.collapsed ~ .chat-peek {
   opacity: 1;
   pointer-events: all;
 }
 
 .chat-peek {
-  bottom: 0;
-  left: 50%;
-  transform: translateX(-50%);
-  border-radius: var(--border-radius-sm) var(--border-radius-sm) 0 0;
-  padding: 4px 16px;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  border-radius: var(--border-radius-sm) 0 0 var(--border-radius-sm);
+  padding: 16px 4px;
+  height: auto;
+  writing-mode: horizontal-tb;
+  border-right: none;
+  bottom: auto;
+  left: auto;
   width: auto;
   border-bottom: none;
 }
 
-.chat-section:not(.collapsed) + .chat-peek {
+.chat-section:not(.collapsed) ~ .chat-peek {
   opacity: 0 !important;
   pointer-events: none !important;
 } 

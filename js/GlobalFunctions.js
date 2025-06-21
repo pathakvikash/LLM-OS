@@ -52,6 +52,18 @@ class GlobalFunctions {
     // Tab switching function
     window.switchTab = (tabName) => this.switchTab(tabName);
     
+    // Resize functions
+    window.resetSectionSizes = () => {
+      if (window.resizeManager) {
+        window.resizeManager.resetSizes();
+      }
+    };
+    window.saveSectionSizes = () => {
+      if (window.resizeManager) {
+        window.resizeManager.saveSizes();
+      }
+    };
+    
     // Debug functions
     window.checkModels = () => this.app.checkModels();
     

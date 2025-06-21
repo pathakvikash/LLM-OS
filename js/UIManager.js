@@ -174,8 +174,15 @@ class UIManager {
 
     if (visible) {
       section.classList.remove('collapsed');
+      // On restore, if sizes were saved, they will be loaded by resizeManager
+      // No need to do anything special here.
     } else {
       section.classList.add('collapsed');
+      // When collapsing a resized section, remove its inline width style
+      // so the CSS .collapsed class can take full effect.
+      section.style.width = '';
+      section.style.flex = '';
+      section.style.flexShrink = '';
     }
 
     // Update layout
@@ -214,10 +221,10 @@ class UIManager {
       sidebarBtn.textContent = this.sidebar.classList.contains('collapsed') ? '▶' : '◀';
     }
     if (userBtn) {
-      userBtn.textContent = this.userSection.classList.contains('collapsed') ? '▶' : '▼';
+      userBtn.textContent = this.userSection.classList.contains('collapsed') ? '▲' : '▼';
     }
     if (chatBtn) {
-      chatBtn.textContent = this.chatSection.classList.contains('collapsed') ? '▶' : '▼';
+      chatBtn.textContent = this.chatSection.classList.contains('collapsed') ? '◀' : '▶';
     }
     
     this.logger.debug('Collapse buttons updated');

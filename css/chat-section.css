@@ -1,6 +1,6 @@
 /* Chat Section, Chat Box, Chat Input */
 .chat-section {
-  flex: 2;
+  flex: 1;
   display: flex;
   flex-direction: column;
   background: rgba(0, 0, 0, 0.1);

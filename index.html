@@ -78,6 +78,9 @@
           <button class="session-btn danger" onclick="resetModel()">
             <span>🔄</span> Reset Model
           </button>
+          <button class="session-btn" onclick="resetSectionSizes()" title="Reset section sizes to default">
+            <span>📐</span> Reset Layout
+          </button>
         </div>
         <div class="session-info" id="sessionInfo">
           Session: <span id="sessionId">Loading...</span>
@@ -85,6 +88,9 @@
       </div>
     </div>
     <div class="sidebar-peek peek-bar" id="sidebarPeek" title="Show Sidebar" onclick="restoreSidebar()">▶</div>
+    
+    <!-- Resize handle between sidebar and main content -->
+    <div class="resize-handle" id="sidebarResizeHandle" title="Drag to resize sidebar"></div>
     
     <!-- Main Content -->
     <div class="main-content" id="mainContent">
@@ -147,6 +153,9 @@
       </div>
       <div class="user-peek peek-bar" id="userPeek" title="Show User Section" onclick="restoreUserSection()">▼</div>
       
+      <!-- Resize handle between user and chat sections -->
+      <div class="resize-handle" id="userChatResizeHandle" title="Drag to resize sections"></div>
+      
       <!-- Chat Section -->
       <div class="chat-section" id="chatSection">
         <div class="chat-header">
@@ -154,7 +163,7 @@
           <div class="header-controls">
             <div class="chat-status" id="chatStatus">Ready</div>
             <button class="collapse-btn" onclick="toggleChatSection()" title="Toggle Chat Section">
-              <span>▼</span>
+              <span>▶</span>
             </button>
           </div>
         </div>
@@ -170,9 +179,12 @@
           </div>
         </div>
       </div>
-      <div class="chat-peek peek-bar" id="chatPeek" title="Show Chat Section" onclick="restoreChatSection()">▲</div>
+      <div class="chat-peek peek-bar" id="chatPeek" title="Show Chat Section" onclick="restoreChatSection()">◀</div>
     </div>
   </div>
+
+  <!-- Resize indicator -->
+  <div class="resize-indicator" id="resizeIndicator"></div>
 
   <!-- Load modular JavaScript files -->
   <script src="js/config.js"></script>
@@ -184,6 +196,7 @@
   <script src="js/FileUI.js"></script>
   <script src="js/AppController.js"></script>
   <script src="js/WorkspaceManager.js"></script>
+  <script src="js/ResizeManager.js"></script>
   <script src="js/GlobalFunctions.js"></script>
   <script src="js/main.js"></script>
 </body>
