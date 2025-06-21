@@ -19,7 +19,7 @@ class FileManager {
     
     // IndexedDB setup
     this.dbName = 'LLM-OS-Files';
-    this.dbVersion = 1;
+    this.dbVersion = 3;
     this.storeName = 'files';
     
     this.logger.info('FileManager initialized', {
@@ -63,12 +63,22 @@ class FileManager {
       request.onupgradeneeded = (event) => {
         this.logger.debug('IndexedDB upgrade needed', { oldVersion: event.oldVersion, newVersion: event.newVersion });
         const db = event.target.result;
+        
+        // Create files store
         if (!db.objectStoreNames.contains(this.storeName)) {
           const store = db.createObjectStore(this.storeName, { keyPath: 'id' });
           store.createIndex('name', 'name', { unique: false });
           store.createIndex('category', 'category', { unique: false });
           store.createIndex('uploadDate', 'uploadDate', { unique: false });
           this.logger.info('IndexedDB object store created', { storeName: this.storeName });
+        }
+        
+        // Create backups store for file edit history
+        if (!db.objectStoreNames.contains('backups')) {
+          const backupStore = db.createObjectStore('backups', { keyPath: 'id' });
+          backupStore.createIndex('originalFileId', 'originalFileId', { unique: false });
+          backupStore.createIndex('timestamp', 'timestamp', { unique: false });
+          this.logger.info('IndexedDB backups store created');
         }
       };
     } catch (error) {
@@ -575,6 +585,206 @@ class FileManager {
     }
     
     this.logger.info('All files cleared', { count });
+  }
+
+  /**
+   * Update file content with AI-generated changes
+   * @param {string} fileId - The file ID to update
+   * @param {string} newContent - The new content to replace the file with
+   * @param {string} editDescription - Description of what was changed
+   * @returns {Promise<boolean>} - Success status
+   */
+  async updateFileContent(fileId, newContent, editDescription = 'AI edit') {
+    try {
+      const file = this.files.get(fileId);
+      if (!file) {
+        this.logger.error('File not found for update', { fileId });
+        throw new Error(`File not found: ${fileId}`);
+      }
+
+      // Only allow editing of text files
+      if (file.category !== 'text') {
+        this.logger.warn('Cannot edit non-text file', { 
+          fileId, 
+          fileName: file.name, 
+          category: file.category 
+        });
+        throw new Error(`Cannot edit ${file.category} files. Only text files are editable.`);
+      }
+
+      // Create backup before editing
+      await this.createBackup(fileId);
+
+      // Update file content
+      const oldContent = file.content;
+      file.content = newContent;
+      file.preview = this.generateTextPreview(newContent);
+      file.lastModified = new Date().toISOString();
+      file.editHistory = file.editHistory || [];
+      file.editHistory.push({
+        timestamp: new Date().toISOString(),
+        description: editDescription,
+        oldContentLength: oldContent?.length || 0,
+        newContentLength: newContent.length,
+        changes: this.calculateContentChanges(oldContent, newContent)
+      });
+
+      // Update file blob
+      const newBlob = new Blob([newContent], { type: 'text/plain' });
+      this.fileBlobs.set(fileId, newBlob);
+      file.size = newBlob.size;
+
+      // Save to storage
+      await this.saveFileToStorage(file);
+
+      this.logger.info('File content updated successfully', {
+        fileId,
+        fileName: file.name,
+        oldSize: oldContent?.length || 0,
+        newSize: newContent.length,
+        editDescription
+      });
+
+      return true;
+    } catch (error) {
+      this.logger.error('Failed to update file content', {
+        fileId,
+        error: error.message,
+        stack: error.stack
+      });
+      throw error;
+    }
+  }
+
+  /**
+   * Create a backup of the current file content
+   * @param {string} fileId - The file ID to backup
+   * @returns {Promise<string>} - Backup ID
+   */
+  async createBackup(fileId) {
+    try {
+      const file = this.files.get(fileId);
+      if (!file) {
+        throw new Error(`File not found: ${fileId}`);
+      }
+
+      const backupId = `backup_${fileId}_${Date.now()}`;
+      const backup = {
+        id: backupId,
+        originalFileId: fileId,
+        fileName: file.name,
+        content: file.content,
+        timestamp: new Date().toISOString(),
+        description: 'Auto-backup before AI edit'
+      };
+
+      // Store backup in IndexedDB
+      if (this.db) {
+        const transaction = this.db.transaction(['backups'], 'readwrite');
+        const store = transaction.objectStore('backups');
+        await store.put(backup);
+      }
+
+      this.logger.debug('File backup created', {
+        fileId,
+        backupId,
+        fileName: file.name
+      });
+
+      return backupId;
+    } catch (error) {
+      this.logger.error('Failed to create backup', {
+        fileId,
+        error: error.message
+      });
+      throw error;
+    }
+  }
+
+  /**
+   * Restore file from backup
+   * @param {string} backupId - The backup ID to restore from
+   * @returns {Promise<boolean>} - Success status
+   */
+  async restoreFromBackup(backupId) {
+    try {
+      if (!this.db) {
+        throw new Error('IndexedDB not available');
+      }
+
+      const transaction = this.db.transaction(['backups'], 'readonly');
+      const store = transaction.objectStore('backups');
+      const request = store.get(backupId);
+
+      return new Promise((resolve, reject) => {
+        request.onsuccess = async () => {
+          const backup = request.result;
+          if (!backup) {
+            reject(new Error(`Backup not found: ${backupId}`));
+            return;
+          }
+
+          try {
+            await this.updateFileContent(
+              backup.originalFileId,
+              backup.content,
+              `Restored from backup: ${backup.description}`
+            );
+            resolve(true);
+          } catch (error) {
+            reject(error);
+          }
+        };
+
+        request.onerror = () => {
+          reject(new Error(`Failed to retrieve backup: ${backupId}`));
+        };
+      });
+    } catch (error) {
+      this.logger.error('Failed to restore from backup', {
+        backupId,
+        error: error.message
+      });
+      throw error;
+    }
+  }
+
+  /**
+   * Calculate content changes for edit history
+   * @param {string} oldContent - Original content
+   * @param {string} newContent - New content
+   * @returns {object} - Change statistics
+   */
+  calculateContentChanges(oldContent, newContent) {
+    const oldLines = oldContent ? oldContent.split('\n') : [];
+    const newLines = newContent ? newContent.split('\n') : [];
+    
+    return {
+      linesAdded: Math.max(0, newLines.length - oldLines.length),
+      linesRemoved: Math.max(0, oldLines.length - newLines.length),
+      charactersAdded: Math.max(0, newContent.length - (oldContent?.length || 0)),
+      charactersRemoved: Math.max(0, (oldContent?.length || 0) - newContent.length)
+    };
+  }
+
+  /**
+   * Get edit history for a file
+   * @param {string} fileId - The file ID
+   * @returns {Array} - Edit history array
+   */
+  getEditHistory(fileId) {
+    const file = this.files.get(fileId);
+    return file?.editHistory || [];
+  }
+
+  /**
+   * Check if file is editable
+   * @param {string} fileId - The file ID
+   * @returns {boolean} - Whether the file can be edited
+   */
+  isFileEditable(fileId) {
+    const file = this.files.get(fileId);
+    return file && file.category === 'text';
   }
 }
 

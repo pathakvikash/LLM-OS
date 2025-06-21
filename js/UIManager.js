@@ -235,6 +235,79 @@ class UIManager {
     this.addMessage("Hello! I'm your AI assistant. How can I help you today?", 'agent');
     this.logger.debug('Chat cleared');
   }
+
+  /**
+   * Show edit confirmation dialog
+   * @param {string} fileName - Name of the file being edited
+   * @param {string} editInstruction - The editing instruction
+   * @returns {Promise<boolean>} - User's confirmation
+   */
+  async showEditConfirmation(fileName, editInstruction) {
+    return new Promise((resolve) => {
+      const dialog = document.createElement('div');
+      dialog.className = 'edit-confirmation-dialog';
+      dialog.innerHTML = `
+        <div class="dialog-overlay"></div>
+        <div class="dialog-content">
+          <div class="dialog-header">
+            <h3>🤖 AI Edit Confirmation</h3>
+            <button class="dialog-close">×</button>
+          </div>
+          <div class="dialog-body">
+            <p><strong>File:</strong> ${fileName}</p>
+            <p><strong>Edit Instruction:</strong> ${editInstruction}</p>
+            <p>Do you want to apply these AI-generated changes to your file?</p>
+            <div class="dialog-warning">
+              ⚠️ <strong>Note:</strong> This action will modify your file. A backup will be created automatically.
+            </div>
+          </div>
+          <div class="dialog-actions">
+            <button class="btn-secondary">❌ Cancel</button>
+            <button class="btn-primary">✅ Apply Changes</button>
+          </div>
+        </div>
+      `;
+      
+      document.body.appendChild(dialog);
+      
+      // Add event listeners
+      const closeBtn = dialog.querySelector('.dialog-close');
+      const cancelBtn = dialog.querySelector('.btn-secondary');
+      const applyBtn = dialog.querySelector('.btn-primary');
+      const overlay = dialog.querySelector('.dialog-overlay');
+      
+      const closeDialog = (result) => {
+        dialog.remove();
+        resolve(result);
+      };
+      
+      closeBtn.addEventListener('click', () => closeDialog(false));
+      cancelBtn.addEventListener('click', () => closeDialog(false));
+      applyBtn.addEventListener('click', () => closeDialog(true));
+      overlay.addEventListener('click', () => closeDialog(false));
+      
+      // Auto-focus on the primary button
+      setTimeout(() => {
+        applyBtn.focus();
+      }, 100);
+    });
+  }
+
+  /**
+   * Add a success message to chat
+   * @param {string} message - Success message
+   */
+  addSuccessMessage(message) {
+    this.addMessage(message, 'success');
+  }
+
+  /**
+   * Add a system message to chat
+   * @param {string} message - System message
+   */
+  addSystemMessage(message) {
+    this.addMessage(message, 'system');
+  }
 }
 
 // Export for use in other modules

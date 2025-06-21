@@ -107,6 +107,29 @@ class AppController {
     const message = this.ui.userInput.value.trim();
     if (!message || this.state.isProcessing) return;
 
+    // --- AI FILE EDITING VIA CHAT ---
+    // Detect edit intent in chat (simple heuristics)
+    // Examples: "Edit file", "Edit the file to ...", "Edit: ..."
+    const editRegex = /^(edit( file)?(\s*[:\-])?\s*)(.+)$/i;
+    const match = message.match(editRegex);
+    let editInstruction = null;
+    if (match) {
+      // If a file is selected, use it
+      const selectedFileId = window.fileUI?.selectedFileId;
+      if (selectedFileId && window.fileManager?.isFileEditable(selectedFileId)) {
+        editInstruction = match[4].trim();
+        // Call performFileEdit directly
+        this.ui.addMessage(`(AI Edit via chat detected)`, 'system');
+        await this.performFileEdit(selectedFileId, editInstruction);
+        this.ui.userInput.value = '';
+        return;
+      } else {
+        this.ui.addMessage('No editable file is selected. Please select a text file first.', 'error');
+        return;
+      }
+    }
+    // --- END AI FILE EDITING VIA CHAT ---
+
     const startTime = performance.now();
     this.state.isProcessing = true;
     this.ui.setLoading(true);
@@ -413,6 +436,238 @@ class AppController {
       this.logger.error('File action failed', error);
       this.ui.addMessage(`File action failed: ${error.message}`, 'error');
     }
+  }
+
+  /**
+   * Perform AI-powered file editing with actual content modification
+   * @param {string} fileId - The file ID to edit
+   * @param {string} editInstruction - User's editing instruction
+   * @returns {Promise<boolean>} - Success status
+   */
+  async performFileEdit(fileId, editInstruction) {
+    if (!window.fileManager) {
+      this.ui.addMessage('File management not available', 'error');
+      return false;
+    }
+
+    const file = window.fileManager.getFile(fileId);
+    if (!file) {
+      this.ui.addMessage('File not found', 'error');
+      return false;
+    }
+
+    // Check if file is editable
+    if (!window.fileManager.isFileEditable(fileId)) {
+      this.ui.addMessage(`Cannot edit ${file.category} files. Only text files are editable.`, 'error');
+      return false;
+    }
+
+    const actionMessage = `EDIT request on file: ${file.name}\n\nInstruction: ${editInstruction}`;
+    this.ui.addMessage(actionMessage, 'user');
+    this.state.addMessage('user', actionMessage);
+
+    try {
+      // Set the file as selected for context
+      if (window.fileUI) {
+        window.fileUI.selectedFileId = fileId;
+      }
+
+      const context = this.buildContext();
+      
+      // Build a specialized prompt for file editing
+      const editPrompt = this.buildEditPrompt(editInstruction, context);
+      const aiResponse = await this.getAIResponse(editPrompt, context);
+      
+      // Extract the edited content from AI response
+      const editedContent = this.extractEditedContent(aiResponse, file.content);
+      
+      if (editedContent && editedContent !== file.content) {
+        // Show preview of changes
+        this.ui.addMessage(`📝 **AI Edit Preview:**\n\n${this.generateEditPreview(file.content, editedContent)}`, 'system');
+        
+        // Ask for confirmation
+        const confirmed = await this.ui.showEditConfirmation(file.name, editInstruction);
+        
+        if (confirmed) {
+          // Apply the changes
+          await window.fileManager.updateFileContent(fileId, editedContent, editInstruction);
+          
+          // Update the file display
+          if (window.fileUI) {
+            window.fileUI.refreshFileDisplay(fileId);
+          }
+          
+          this.ui.addMessage(`✅ **File updated successfully!**\n\nChanges applied to: ${file.name}`, 'success');
+          this.logger.logUserAction('file_edit_applied', { 
+            fileId, 
+            fileName: file.name,
+            instruction: editInstruction,
+            oldSize: file.content?.length || 0,
+            newSize: editedContent.length
+          });
+          
+          return true;
+        } else {
+          this.ui.addMessage('❌ Edit cancelled by user', 'system');
+          return false;
+        }
+      } else {
+        this.ui.addMessage('⚠️ No changes detected in AI response. The file content remains unchanged.', 'system');
+        return false;
+      }
+      
+    } catch (error) {
+      this.logger.error('File edit failed', error);
+      this.ui.addMessage(`File edit failed: ${error.message}`, 'error');
+      return false;
+    }
+  }
+
+  /**
+   * Build specialized prompt for file editing
+   * @param {string} editInstruction - User's editing instruction
+   * @param {object} context - File context
+   * @returns {string} - Formatted edit prompt
+   */
+  buildEditPrompt(editInstruction, context) {
+    let prompt = `You are an expert file editor. Please edit the following file according to the user's instruction.
+
+**EDITING INSTRUCTION:**
+${editInstruction}
+
+**FILE TO EDIT:**
+Name: ${context.selectedFile.name}
+Type: ${context.selectedFile.type}
+Extension: ${context.selectedFile.extension}
+
+**CURRENT FILE CONTENT:**
+\`\`\`${this.getFileExtension(context.selectedFile.name)}
+${context.fileContent}
+\`\`\`
+
+**INSTRUCTIONS:**
+1. Analyze the current content and the editing instruction
+2. Make the requested changes to the file content
+3. Return ONLY the complete edited file content
+4. Do not include any explanations, markdown formatting, or code blocks
+5. Return the raw file content exactly as it should appear in the file
+6. Preserve the original structure and formatting where appropriate
+7. If the instruction is unclear, make reasonable assumptions based on context
+
+**RESPONSE FORMAT:**
+Return only the edited file content, nothing else.`;
+
+    return prompt;
+  }
+
+  /**
+   * Extract edited content from AI response
+   * @param {string} aiResponse - AI's response
+   * @param {string} originalContent - Original file content
+   * @returns {string|null} - Extracted edited content or null if extraction failed
+   */
+  extractEditedContent(aiResponse, originalContent) {
+    try {
+      // Remove markdown code blocks if present
+      let content = aiResponse.replace(/```[\w]*\n?/g, '').replace(/```/g, '');
+      
+      // Remove any leading/trailing whitespace
+      content = content.trim();
+      
+      // If the content is significantly different from original, return it
+      if (content && content !== originalContent) {
+        return content;
+      }
+      
+      // If content is the same, try to extract from different patterns
+      const patterns = [
+        /^Content:\s*([\s\S]*)$/i,
+        /^Edited content:\s*([\s\S]*)$/i,
+        /^File content:\s*([\s\S]*)$/i
+      ];
+      
+      for (const pattern of patterns) {
+        const match = content.match(pattern);
+        if (match && match[1] && match[1].trim() !== originalContent) {
+          return match[1].trim();
+        }
+      }
+      
+      return null;
+    } catch (error) {
+      this.logger.error('Failed to extract edited content', error);
+      return null;
+    }
+  }
+
+  /**
+   * Generate a preview of changes between old and new content
+   * @param {string} oldContent - Original content
+   * @param {string} newContent - New content
+   * @returns {string} - Formatted change preview
+   */
+  generateEditPreview(oldContent, newContent) {
+    const oldLines = oldContent ? oldContent.split('\n') : [];
+    const newLines = newContent ? newContent.split('\n') : [];
+    
+    const addedLines = newLines.length - oldLines.length;
+    const removedLines = oldLines.length - newLines.length;
+    const addedChars = Math.max(0, newContent.length - oldContent.length);
+    const removedChars = Math.max(0, oldContent.length - newContent.length);
+    
+    return `**Changes Summary:**
+• Lines: ${addedLines > 0 ? `+${addedLines}` : ''}${removedLines > 0 ? ` -${removedLines}` : ''}${addedLines === 0 && removedLines === 0 ? ' No line changes' : ''}
+• Characters: ${addedChars > 0 ? `+${addedChars}` : ''}${removedChars > 0 ? ` -${removedChars}` : ''}${addedChars === 0 && removedChars === 0 ? ' No character changes' : ''}
+
+**Preview (first 200 characters):**
+${newContent.substring(0, 200)}${newContent.length > 200 ? '...' : ''}`;
+  }
+
+  /**
+   * Get file extension from filename
+   * @param {string} filename - The filename
+   * @returns {string} - File extension
+   */
+  getFileExtension(filename) {
+    const ext = filename.toLowerCase().substring(filename.lastIndexOf('.'));
+    const extensionMap = {
+      '.txt': 'text',
+      '.md': 'markdown',
+      '.py': 'python',
+      '.js': 'javascript',
+      '.html': 'html',
+      '.css': 'css',
+      '.json': 'json',
+      '.xml': 'xml',
+      '.csv': 'csv',
+      '.ts': 'typescript',
+      '.jsx': 'jsx',
+      '.tsx': 'tsx',
+      '.vue': 'vue',
+      '.php': 'php',
+      '.java': 'java',
+      '.cpp': 'cpp',
+      '.c': 'c',
+      '.h': 'c',
+      '.rb': 'ruby',
+      '.go': 'go',
+      '.rs': 'rust',
+      '.swift': 'swift',
+      '.kt': 'kotlin',
+      '.scala': 'scala',
+      '.r': 'r',
+      '.sql': 'sql',
+      '.sh': 'bash',
+      '.bash': 'bash',
+      '.yaml': 'yaml',
+      '.yml': 'yaml',
+      '.toml': 'toml',
+      '.ini': 'ini',
+      '.conf': 'conf',
+      '.log': 'log'
+    };
+    
+    return extensionMap[ext] || 'text';
   }
 
   loadConversationHistory() {

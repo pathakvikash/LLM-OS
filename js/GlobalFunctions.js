@@ -25,6 +25,7 @@ class GlobalFunctions {
     window.sendMessage = () => this.app.sendMessage();
     window.performAction = (actionType) => this.app.performAction(actionType);
     window.performFileAction = (actionType, fileId) => this.app.performFileAction(actionType, fileId);
+    window.performFileEdit = (fileId, editInstruction) => this.app.performFileEdit(fileId, editInstruction);
     window.handleKeyPress = (event) => {
       if (event.key === 'Enter' && !event.shiftKey) {
         event.preventDefault();

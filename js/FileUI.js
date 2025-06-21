@@ -108,9 +108,9 @@ class FileUI {
         <button class="back-btn" onclick="fileUI.showBrowser()">← Back</button>
         <h3 id="viewerTitle">File Viewer</h3>
         <div class="viewer-controls">
-          <button class="viewer-btn" onclick="fileUI.performFileAction('edit')" title="Edit with AI">✏️</button>
-          <button class="viewer-btn" onclick="fileUI.performFileAction('ask')" title="Ask about file">❓</button>
-          <button class="viewer-btn" onclick="fileUI.performFileAction('agent')" title="Agent mode">🤖</button>
+          <button class="viewer-btn ai-edit-btn" onclick="fileUI.performFileEdit()" title="AI Edit File">🤖 Edit</button>
+          <button class="viewer-btn" onclick="fileUI.performFileAction('ask')" title="Ask about file">❓ Ask</button>
+          <button class="viewer-btn" onclick="fileUI.performFileAction('agent')" title="Agent mode">🤖 Agent</button>
           <button class="viewer-btn" onclick="fileUI.downloadFile()" title="Download">⬇️</button>
           <button class="viewer-btn" onclick="fileUI.deleteFile()" title="Delete">🗑️</button>
         </div>
@@ -288,9 +288,9 @@ class FileUI {
           ${file.preview ? `<div class="file-preview">${file.preview}</div>` : ''}
         </div>
         <div class="file-actions">
-          <button class="file-action-btn" onclick="event.stopPropagation(); performFileAction('edit', '${file.id}')" title="Edit with AI">✏️</button>
-          <button class="file-action-btn" onclick="event.stopPropagation(); performFileAction('ask', '${file.id}')" title="Ask about file">❓</button>
-          <button class="file-action-btn" onclick="event.stopPropagation(); performFileAction('agent', '${file.id}')" title="Agent mode">🤖</button>
+          <button class="file-action-btn ai-edit-btn" onclick="event.stopPropagation(); fileUI.performFileEdit()" title="AI Edit File">🤖 Edit</button>
+          <button class="file-action-btn" onclick="event.stopPropagation(); performFileAction('ask', '${file.id}')" title="Ask about file">❓ Ask</button>
+          <button class="file-action-btn" onclick="event.stopPropagation(); performFileAction('agent', '${file.id}')" title="Agent mode">🤖 Agent</button>
           <button class="file-action-btn" onclick="event.stopPropagation(); fileUI.deleteFile('${file.id}')" title="Delete">🗑️</button>
         </div>
         <div class="file-drag-handle" title="Drag to workspace">📁</div>
@@ -521,6 +521,136 @@ class FileUI {
       window.performFileAction(actionType, this.selectedFileId);
     } else {
       this.showError('AI actions not available');
+    }
+  }
+
+  /**
+   * Perform AI-powered file editing with instruction input
+   */
+  async performFileEdit() {
+    if (!this.selectedFileId) {
+      this.showError('No file selected');
+      return;
+    }
+
+    const file = this.fileManager.getFile(this.selectedFileId);
+    if (!file) {
+      this.showError('File not found');
+      return;
+    }
+
+    // Check if file is editable
+    if (!this.fileManager.isFileEditable(this.selectedFileId)) {
+      this.showError(`Cannot edit ${file.category} files. Only text files are editable.`);
+      return;
+    }
+
+    // Show edit instruction dialog
+    const editInstruction = await this.showEditInstructionDialog(file.name);
+    if (!editInstruction) {
+      return; // User cancelled
+    }
+
+    // Perform the edit using AppController
+    if (window.appController && window.appController.performFileEdit) {
+      try {
+        await window.appController.performFileEdit(this.selectedFileId, editInstruction);
+      } catch (error) {
+        this.logger.error('File edit failed', error);
+        this.showError(`Edit failed: ${error.message}`);
+      }
+    } else {
+      this.showError('File editing not available');
+    }
+  }
+
+  /**
+   * Show edit instruction input dialog
+   * @param {string} fileName - Name of the file being edited
+   * @returns {Promise<string|null>} - User's edit instruction or null if cancelled
+   */
+  async showEditInstructionDialog(fileName) {
+    return new Promise((resolve) => {
+      const dialog = document.createElement('div');
+      dialog.className = 'edit-instruction-dialog';
+      dialog.innerHTML = `
+        <div class="dialog-overlay"></div>
+        <div class="dialog-content">
+          <div class="dialog-header">
+            <h3>✏️ AI File Editor</h3>
+            <button class="dialog-close">×</button>
+          </div>
+          <div class="dialog-body">
+            <p><strong>File:</strong> ${fileName}</p>
+            <p>Describe what changes you want the AI to make to this file:</p>
+            <textarea 
+              id="editInstruction" 
+              placeholder="e.g., 'Fix all spelling errors', 'Add comments to explain the code', 'Improve the formatting', 'Translate to Spanish'"
+              rows="4"
+              style="width: 100%; margin: 10px 0; padding: 10px; border: 1px solid #ccc; border-radius: 4px; resize: vertical;"
+            ></textarea>
+            <div class="dialog-examples">
+              <strong>Examples:</strong>
+              <ul>
+                <li>"Fix all typos and grammar errors"</li>
+                <li>"Add proper comments to explain the code"</li>
+                <li>"Improve the code formatting and indentation"</li>
+                <li>"Translate this text to French"</li>
+                <li>"Add error handling to the functions"</li>
+              </ul>
+            </div>
+          </div>
+          <div class="dialog-actions">
+            <button class="btn-secondary">❌ Cancel</button>
+            <button class="btn-primary">🤖 Start AI Edit</button>
+          </div>
+        </div>
+      `;
+      
+      document.body.appendChild(dialog);
+      
+      // Add event listeners
+      const closeBtn = dialog.querySelector('.dialog-close');
+      const cancelBtn = dialog.querySelector('.btn-secondary');
+      const applyBtn = dialog.querySelector('.btn-primary');
+      const overlay = dialog.querySelector('.dialog-overlay');
+      const textarea = dialog.querySelector('#editInstruction');
+      
+      const closeDialog = (result) => {
+        dialog.remove();
+        resolve(result);
+      };
+      
+      closeBtn.addEventListener('click', () => closeDialog(null));
+      cancelBtn.addEventListener('click', () => closeDialog(null));
+      overlay.addEventListener('click', () => closeDialog(null));
+      applyBtn.addEventListener('click', () => {
+        const instruction = textarea.value.trim();
+        if (instruction) {
+          closeDialog(instruction);
+        } else {
+          alert('Please enter an edit instruction');
+        }
+      });
+      
+      // Auto-focus on the textarea
+      setTimeout(() => {
+        if (textarea) textarea.focus();
+      }, 100);
+    });
+  }
+
+  /**
+   * Refresh file display after content update
+   * @param {string} fileId - The file ID to refresh
+   */
+  refreshFileDisplay(fileId) {
+    if (this.currentView === 'viewer' && this.selectedFileId === fileId) {
+      const file = this.fileManager.getFile(fileId);
+      if (file) {
+        this.displayFile(file);
+        this.logger.debug('File display refreshed', { fileId, fileName: file.name });
+      }
     }
   }
 

@@ -35,4 +35,17 @@ console.log(greetUser("User"));
 5. Click "Chat" to start a conversation about this file
 6. Ask questions like "What's in this file?" or "Explain the code"
 
-This demonstrates how you can easily work with files in the LLM-OS interface! 
+This demonstrates how you can easily work with files in the LLM-OS interface!
+
+Hello World!
+
+This is a test file for the AI-powered file editing feature.
+
+The AI can help you:
+- Fix spelling and grammar errors
+- Improve formatting and structure
+- Add comments and explanations
+- Translate content to different languages
+- Optimize code and text
+
+Try uploading this file and using the AI edit feature to make improvements! 
