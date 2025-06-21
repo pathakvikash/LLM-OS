@@ -72,6 +72,26 @@
       border-radius: 0 4px 4px 0;
       cursor: pointer;
     }
+    .loading {
+      opacity: 0.6;
+      pointer-events: none;
+    }
+    .error {
+      color: #ff6b6b;
+      font-style: italic;
+    }
+    .system-message {
+      color: #a8a8a8;
+      font-size: 0.9em;
+      font-style: italic;
+    }
+    .context-info {
+      background-color: #2a2a3a;
+      padding: 8px;
+      margin: 5px 0;
+      border-radius: 4px;
+      font-size: 0.8em;
+    }
   </style>
 </head>
 <body>
@@ -87,80 +107,523 @@
     </div>
     <div class="agent-section">
       <div class="chat-box" id="chatBox">
-        <p><strong>Agent:</strong> Hello! How can I assist you today?</p>
+        <p><strong>Agent:</strong> Hello! I'm your AI assistant. How can I help you today?</p>
       </div>
       <div class="chat-input">
-        <input type="text" id="userInput" placeholder="Type a message...">
-        <button onclick="sendMessage()">Send</button>
+        <input type="text" id="userInput" placeholder="Type a message..." onkeypress="handleKeyPress(event)">
+        <button onclick="sendMessage()" id="sendButton">Send</button>
       </div>
     </div>
   </div>
 
   <script>
-    const appState = {
-      userContext: {},
-      agentMessages: [],
-      userMessages: []
-    };
+    // Enhanced Application State Management
+    class AppState {
+      constructor() {
+        this.sessionId = this.generateSessionId();
+        this.userContext = new Map();
+        this.conversationHistory = [];
+        this.currentModel = 'llama3.2:1b'; // Default Ollama model
+        this.ollamaEndpoint = '/api/generate'; // Use proxy server
+        this.isProcessing = false;
+        this.systemPrompt = this.getSystemPrompt();
+        
+        // Load state from localStorage if available
+        this.loadState();
+      }
 
-    function sendMessage() {
-      const input = document.getElementById("userInput");
-      const chatBox = document.getElementById("chatBox");
-      const message = input.value.trim();
+      generateSessionId() {
+        return 'session_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+      }
 
-      if (message) {
-        appState.userMessages.push(message);
+      getSystemPrompt() {
+        return `You are an intelligent AI assistant integrated into a web application. 
+        You have access to user context including selected text and application state.
+        Always provide helpful, concise, and actionable responses.
+        Maintain context awareness and refer to previous conversation when relevant.`;
+      }
 
-        const userMsg = document.createElement("p");
-        userMsg.innerHTML = `<strong>You:</strong> ${message}`;
-        chatBox.appendChild(userMsg);
+      updateContext(key, value) {
+        this.userContext.set(key, value);
+        this.saveState();
+        console.log(`Context updated: ${key} = ${value}`);
+      }
 
-        const response = `I'm working on it based on: ${message}`;
-        appState.agentMessages.push(response);
+      getContext(key) {
+        return this.userContext.get(key);
+      }
 
-        const agentMsg = document.createElement("p");
-        agentMsg.innerHTML = `<strong>Agent:</strong> ${response}`;
-        chatBox.appendChild(agentMsg);
+      addMessage(role, content, metadata = {}) {
+        const message = {
+          id: Date.now() + Math.random(),
+          role,
+          content,
+          timestamp: new Date().toISOString(),
+          metadata
+        };
+        this.conversationHistory.push(message);
+        this.saveState();
+        return message;
+      }
 
-        chatBox.scrollTop = chatBox.scrollHeight;
-        input.value = "";
+      getConversationContext() {
+        // Return last 10 messages for context
+        return this.conversationHistory.slice(-10);
+      }
+
+      saveState() {
+        try {
+          const stateData = {
+            sessionId: this.sessionId,
+            userContext: Object.fromEntries(this.userContext),
+            conversationHistory: this.conversationHistory.slice(-20), // Keep last 20 messages
+            currentModel: this.currentModel
+          };
+          localStorage.setItem('llmOS_state', JSON.stringify(stateData));
+        } catch (error) {
+          console.warn('Failed to save state:', error);
+        }
+      }
+
+      loadState() {
+        try {
+          const savedState = localStorage.getItem('llmOS_state');
+          if (savedState) {
+            const stateData = JSON.parse(savedState);
+            this.sessionId = stateData.sessionId || this.sessionId;
+            this.userContext = new Map(Object.entries(stateData.userContext || {}));
+            this.conversationHistory = stateData.conversationHistory || [];
+            this.currentModel = stateData.currentModel || this.currentModel;
+          }
+        } catch (error) {
+          console.warn('Failed to load state:', error);
+        }
+      }
+
+      clearSession() {
+        this.sessionId = this.generateSessionId();
+        this.conversationHistory = [];
+        this.userContext.clear();
+        this.saveState();
+      }
+
+      resetModel() {
+        // Reset to default model and clear cache
+        this.currentModel = 'llama3.2:1b';
+        localStorage.removeItem('llmOS_state');
+        console.log('Model reset to default: llama3.2:1b');
       }
     }
 
-    function updateUserContext(key, value) {
-      appState.userContext[key] = value;
-      console.log("Updated context:", appState.userContext);
+    // Ollama API Integration
+    class OllamaAPI {
+      constructor(endpoint) {
+        this.endpoint = endpoint;
+      }
+
+      async chat(messages, model = 'llama3.2:1b', options = {}) {
+        // Convert chat messages to a single prompt for generate endpoint
+        const prompt = this.convertMessagesToPrompt(messages);
+        
+        const requestBody = {
+          model: model,
+          prompt: prompt,
+          stream: false,
+          options: {
+            temperature: options.temperature || 0.7,
+            top_p: options.top_p || 0.9,
+            ...options
+          }
+        };
+
+        try {
+          const response = await fetch(this.endpoint, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              // Add CORS headers to help with preflight requests
+              'Accept': 'application/json',
+            },
+            mode: 'cors', // Explicitly request CORS
+            credentials: 'omit', // Don't send credentials
+            body: JSON.stringify(requestBody)
+          });
+
+          if (!response.ok) {
+            const errorText = await response.text();
+            let errorMessage = `HTTP error! status: ${response.status}`;
+            
+            try {
+              const errorData = JSON.parse(errorText);
+              if (errorData.error && errorData.error.includes('model') && errorData.error.includes('not found')) {
+                errorMessage = `Model '${model}' not found. Please ensure the model is pulled with: ollama pull ${model}`;
+              } else if (errorData.error) {
+                errorMessage = `Ollama error: ${errorData.error}`;
+              }
+            } catch (e) {
+              // If we can't parse the error, use the raw text
+              if (errorText.includes('model') && errorText.includes('not found')) {
+                errorMessage = `Model '${model}' not found. Please ensure the model is pulled with: ollama pull ${model}`;
+              }
+            }
+            
+            throw new Error(errorMessage);
+          }
+
+          const data = await response.json();
+          return data.response;
+        } catch (error) {
+          console.error('Ollama API error:', error);
+          
+          // If CORS error, provide helpful message
+          if (error.message.includes('CORS') || error.message.includes('preflight')) {
+            throw new Error('CORS Error: Make sure Ollama is running and accessible. You may need to configure CORS in Ollama or use a proxy.');
+          }
+          
+          throw error;
+        }
+      }
+
+      convertMessagesToPrompt(messages) {
+        let prompt = '';
+        
+        for (const message of messages) {
+          if (message.role === 'system') {
+            prompt += `System: ${message.content}\n\n`;
+          } else if (message.role === 'user') {
+            prompt += `User: ${message.content}\n\n`;
+          } else if (message.role === 'assistant') {
+            prompt += `Assistant: ${message.content}\n\n`;
+          }
+        }
+        
+        prompt += 'Assistant: ';
+        return prompt;
+      }
+
+      async getAvailableModels() {
+        try {
+          const response = await fetch('/api/tags', {
+            method: 'GET',
+            headers: {
+              'Accept': 'application/json',
+            },
+            mode: 'cors',
+            credentials: 'omit'
+          });
+          
+          if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+          }
+          
+          const data = await response.json();
+          return data.models || [];
+        } catch (error) {
+          console.error('Failed to fetch models:', error);
+          return [];
+        }
+      }
+
+      async validateAndSelectModel(currentModel) {
+        try {
+          const availableModels = await this.getAvailableModels();
+          console.log('Available models:', availableModels);
+          
+          // Check if current model exists
+          const modelExists = availableModels.some(model => model.name === currentModel);
+          
+          if (!modelExists && availableModels.length > 0) {
+            // Select the first available model
+            const fallbackModel = availableModels[0].name;
+            console.log(`Model '${currentModel}' not found, using '${fallbackModel}' instead`);
+            return fallbackModel;
+          }
+          
+          return currentModel;
+        } catch (error) {
+          console.error('Error validating model:', error);
+          return currentModel; // Return current model if validation fails
+        }
+      }
     }
 
-    document.getElementById("userSection").addEventListener("mouseup", () => {
-      const selection = window.getSelection().toString().trim();
-      const buttons = document.getElementById("actionButtons");
-      if (selection) {
-        updateUserContext("selectedText", selection);
-        buttons.style.display = "flex";
-      } else {
-        buttons.style.display = "none";
+    // UI Management
+    class UIManager {
+      constructor() {
+        this.chatBox = document.getElementById('chatBox');
+        this.userInput = document.getElementById('userInput');
+        this.sendButton = document.getElementById('sendButton');
+        this.actionButtons = document.getElementById('actionButtons');
       }
+
+      addMessage(message, type = 'user') {
+        const messageElement = document.createElement('p');
+        
+        if (type === 'user') {
+          messageElement.innerHTML = `<strong>You:</strong> ${this.escapeHtml(message)}`;
+        } else if (type === 'agent') {
+          messageElement.innerHTML = `<strong>Agent:</strong> ${this.escapeHtml(message)}`;
+        } else if (type === 'system') {
+          messageElement.className = 'system-message';
+          messageElement.innerHTML = `<strong>System:</strong> ${this.escapeHtml(message)}`;
+        } else if (type === 'error') {
+          messageElement.className = 'error';
+          messageElement.innerHTML = `<strong>Error:</strong> ${this.escapeHtml(message)}`;
+        }
+
+        this.chatBox.appendChild(messageElement);
+        this.scrollToBottom();
+      }
+
+      addContextInfo(context) {
+        if (!context || Object.keys(context).length === 0) return;
+        
+        const contextElement = document.createElement('div');
+        contextElement.className = 'context-info';
+        contextElement.innerHTML = `<strong>Context:</strong> ${this.escapeHtml(JSON.stringify(context, null, 2))}`;
+        this.chatBox.appendChild(contextElement);
+        this.scrollToBottom();
+      }
+
+      escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+      }
+
+      scrollToBottom() {
+        this.chatBox.scrollTop = this.chatBox.scrollHeight;
+      }
+
+      setLoading(loading) {
+        this.sendButton.disabled = loading;
+        this.userInput.disabled = loading;
+        this.sendButton.textContent = loading ? 'Processing...' : 'Send';
+        
+        if (loading) {
+          this.userInput.classList.add('loading');
+        } else {
+          this.userInput.classList.remove('loading');
+        }
+      }
+
+      showActionButtons(show) {
+        this.actionButtons.style.display = show ? 'flex' : 'none';
+      }
+    }
+
+    // Main Application Controller
+    class AppController {
+      constructor() {
+        this.state = new AppState();
+        this.ui = new UIManager();
+        this.ollama = new OllamaAPI(this.state.ollamaEndpoint);
+        
+        this.initializeEventListeners();
+        this.initializeModel();
+        this.loadConversationHistory();
+      }
+
+      initializeEventListeners() {
+        // Text selection handling
+        document.getElementById('userSection').addEventListener('mouseup', () => {
+          const selection = window.getSelection().toString().trim();
+          if (selection) {
+            this.state.updateContext('selectedText', selection);
+            this.ui.showActionButtons(true);
+          } else {
+            this.ui.showActionButtons(false);
+          }
+        });
+
+        // Enter key handling
+        document.getElementById('userInput').addEventListener('keypress', (event) => {
+          if (event.key === 'Enter' && !event.shiftKey) {
+            event.preventDefault();
+            this.sendMessage();
+          }
+        });
+      }
+
+      async initializeModel() {
+        try {
+          // Validate and potentially update the model
+          const validatedModel = await this.ollama.validateAndSelectModel(this.state.currentModel);
+          
+          if (validatedModel !== this.state.currentModel) {
+            this.state.currentModel = validatedModel;
+            this.state.saveState();
+            this.ui.addMessage(`Model changed to: ${validatedModel}`, 'system');
+          } else {
+            this.ui.addMessage(`Using model: ${validatedModel}`, 'system');
+          }
+        } catch (error) {
+          console.error('Error initializing model:', error);
+          this.ui.addMessage(`Error initializing model: ${error.message}`, 'error');
+        }
+      }
+
+      async sendMessage() {
+        const message = this.ui.userInput.value.trim();
+        if (!message || this.state.isProcessing) return;
+
+        this.state.isProcessing = true;
+        this.ui.setLoading(true);
+
+        try {
+          // Add user message to UI and state
+          this.ui.addMessage(message, 'user');
+          this.state.addMessage('user', message);
+          this.ui.userInput.value = '';
+
+          // Prepare context for AI
+          const context = this.buildContext();
+          const aiResponse = await this.getAIResponse(message, context);
+
+          // Add AI response to UI and state
+          this.ui.addMessage(aiResponse, 'agent');
+          this.state.addMessage('assistant', aiResponse);
+
+        } catch (error) {
+          console.error('Error sending message:', error);
+          this.ui.addMessage(`Failed to get response: ${error.message}`, 'error');
+        } finally {
+          this.state.isProcessing = false;
+          this.ui.setLoading(false);
+        }
+      }
+
+      buildContext() {
+        const context = {
+          selectedText: this.state.getContext('selectedText'),
+          sessionId: this.state.sessionId,
+          conversationLength: this.state.conversationHistory.length,
+          currentModel: this.state.currentModel
+        };
+
+        // Add recent conversation context
+        const recentMessages = this.state.getConversationContext();
+        if (recentMessages.length > 0) {
+          context.recentConversation = recentMessages.map(msg => ({
+            role: msg.role,
+            content: msg.content.substring(0, 200) // Limit content length
+          }));
+        }
+
+        return context;
+      }
+
+      async getAIResponse(userMessage, context) {
+        const messages = [
+          { role: 'system', content: this.state.systemPrompt },
+          ...this.state.getConversationContext().map(msg => ({
+            role: msg.role,
+            content: msg.content
+          })),
+          { role: 'user', content: this.buildPrompt(userMessage, context) }
+        ];
+
+        return await this.ollama.chat(messages, this.state.currentModel);
+      }
+
+      buildPrompt(userMessage, context) {
+        let prompt = userMessage;
+
+        if (context.selectedText) {
+          prompt += `\n\nSelected text: "${context.selectedText}"`;
+        }
+
+        if (context.recentConversation && context.recentConversation.length > 0) {
+          prompt += `\n\nRecent conversation context: ${JSON.stringify(context.recentConversation)}`;
+        }
+
+        return prompt;
+      }
+
+      async performAction(actionType) {
+        const selected = this.state.getContext('selectedText') || "[no selection]";
+        const actionMessage = `${actionType.toUpperCase()} request on: ${selected}`;
+        
+        this.ui.addMessage(actionMessage, 'user');
+        this.state.addMessage('user', actionMessage);
+
+        try {
+          const context = this.buildContext();
+          const response = await this.getAIResponse(actionMessage, context);
+          
+          this.ui.addMessage(response, 'agent');
+          this.state.addMessage('assistant', response);
+        } catch (error) {
+          this.ui.addMessage(`Action failed: ${error.message}`, 'error');
+        }
+      }
+
+      loadConversationHistory() {
+        // Display recent conversation history
+        const recentMessages = this.state.getConversationContext();
+        recentMessages.forEach(msg => {
+          if (msg.role === 'user') {
+            this.ui.addMessage(msg.content, 'user');
+          } else if (msg.role === 'assistant') {
+            this.ui.addMessage(msg.content, 'agent');
+          }
+        });
+      }
+
+      async changeModel(modelName) {
+        try {
+          const models = await this.ollama.getAvailableModels();
+          const modelExists = models.some(model => model.name === modelName);
+          
+          if (modelExists) {
+            this.state.currentModel = modelName;
+            this.state.saveState();
+            this.ui.addMessage(`Model changed to: ${modelName}`, 'system');
+          } else {
+            this.ui.addMessage(`Model ${modelName} not available`, 'error');
+          }
+        } catch (error) {
+          this.ui.addMessage(`Failed to change model: ${error.message}`, 'error');
+        }
+      }
+
+      clearSession() {
+        this.state.clearSession();
+        this.chatBox.innerHTML = '<p><strong>Agent:</strong> Session cleared. How can I help you?</p>';
+        this.ui.addMessage('Session cleared', 'system');
+      }
+    }
+
+    // Initialize the application
+    let app;
+    
+    document.addEventListener('DOMContentLoaded', () => {
+      app = new AppController();
+      
+      // Make functions globally available
+      window.sendMessage = () => app.sendMessage();
+      window.performAction = (actionType) => app.performAction(actionType);
+      window.handleKeyPress = (event) => {
+        if (event.key === 'Enter' && !event.shiftKey) {
+          event.preventDefault();
+          app.sendMessage();
+        }
+      };
+
+      // Add troubleshooting functions
+      window.resetModel = () => {
+        app.state.resetModel();
+        location.reload();
+      };
+      
+      window.checkModels = async () => {
+        const models = await app.ollama.getAvailableModels();
+        console.log('Available models:', models);
+        app.ui.addMessage(`Available models: ${models.map(m => m.name).join(', ')}`, 'system');
+      };
+      
+      window.changeModel = (modelName) => app.changeModel(modelName);
     });
-
-    function performAction(actionType) {
-      const selected = appState.userContext.selectedText || "[no selection]";
-      sendToAgent(`${actionType.toUpperCase()} request on: ${selected}`);
-    }
-
-    function sendToAgent(message) {
-      const chatBox = document.getElementById("chatBox");
-
-      const userMsg = document.createElement("p");
-      userMsg.innerHTML = `<strong>You:</strong> ${message}`;
-      chatBox.appendChild(userMsg);
-
-      const agentMsg = document.createElement("p");
-      agentMsg.innerHTML = `<strong>Agent:</strong> Action '${message}' acknowledged.`;
-      chatBox.appendChild(agentMsg);
-
-      chatBox.scrollTop = chatBox.scrollHeight;
-    }
   </script>
 </body>
 </html>
