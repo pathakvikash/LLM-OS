@@ -1,6 +1,6 @@
 # LLM-OS: AI-Powered Application Interface
 
-A modern, AI-powered application interface that integrates file management, workspace automation, and AI assistance in a single, intuitive platform.
+A modern, AI-powered application interface that integrates file management, workspace automation, web search capabilities, and AI assistance in a single, intuitive platform.
 
 ## Features
 
@@ -9,6 +9,13 @@ A modern, AI-powered application interface that integrates file management, work
 - **Automation Types**: Edit, Ask, and Agent modes for different AI interactions
 - **Context-Aware**: AI understands your files, workspace, and conversation history
 - **Real-time Processing**: Instant AI responses with loading indicators
+
+### 🌐 Web Search Integration
+- **Multi-Provider Search**: Support for Google, DuckDuckGo, and Bing search engines
+- **AI-Enhanced Results**: Intelligent analysis and summarization of search results
+- **Content Extraction**: Automatic extraction and processing of web content
+- **Smart Caching**: Efficient caching system for improved performance
+- **Rate Limiting**: Built-in protection against API abuse
 
 ### 📁 File Management System
 - **Multi-format Support**: Upload and manage text files, images, and documents
@@ -61,6 +68,12 @@ A modern, AI-powered application interface that integrates file management, work
 1. **Text Selection**: Select any text in the workspace to reveal action buttons
 2. **AI Actions**: Choose from Edit, Ask, or Agent modes
 3. **Conversation**: Chat with the AI assistant in the chat section
+
+#### Web Search
+1. **Search Interface**: Use the search bar in the chat section to perform web searches
+2. **AI Analysis**: Get intelligent analysis and summaries of search results
+3. **Content Extraction**: Automatically extract and process web content
+4. **Search History**: View and manage your search history
 
 #### AI Models
 1. **Model Selection**: Choose from available Ollama models in the sidebar
