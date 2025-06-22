@@ -7,7 +7,7 @@ class OllamaAPI {
     this.config = config;
     this.logger = logger;
     this.endpoint = this.config.getOllamaEndpoint();
-    this.modelsEndpoint = this.config.get('ollama.modelsEndpoint');
+    this.modelsEndpoint = this.config.getOllamaModelsEndpoint();
   }
 
   async chat(messages, model = null, options = {}) {

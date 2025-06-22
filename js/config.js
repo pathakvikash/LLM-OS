@@ -7,8 +7,8 @@ class AppConfig {
     this.defaults = {
       // Ollama API Configuration
       ollama: {
-        endpoint: '/api/generate',
-        modelsEndpoint: '/api/tags',
+        endpoint: this.getOllamaEndpoint(),
+        modelsEndpoint: this.getOllamaModelsEndpoint(),
         defaultModel: 'llama3.2:1b',
         requestOptions: {
           temperature: 0.7,
@@ -66,6 +66,58 @@ class AppConfig {
     this.config = this.loadCustomConfig();
   }
 
+  /**
+   * Detect if the application is running in a deployed environment
+   * @returns {boolean}
+   */
+  isDeployed() {
+    // Check if we're not on localhost
+    const hostname = window.location.hostname;
+    return hostname !== 'localhost' && 
+           hostname !== '127.0.0.1' && 
+           !hostname.includes('192.168.') &&
+           !hostname.includes('10.') &&
+           !hostname.includes('172.');
+  }
+
+  /**
+   * Get the appropriate Ollama endpoint based on environment
+   * @returns {string}
+   */
+  getOllamaEndpoint() {
+    // Check for custom endpoint in localStorage first
+    const customEndpoint = localStorage.getItem('llmOS_ollama_endpoint');
+    if (customEndpoint) {
+      return customEndpoint;
+    }
+
+    // Use localhost for deployed environments, relative path for local development
+    if (this.isDeployed()) {
+      return 'http://localhost:11434/api/generate';
+    } else {
+      return '/api/generate';
+    }
+  }
+
+  /**
+   * Get the appropriate Ollama models endpoint based on environment
+   * @returns {string}
+   */
+  getOllamaModelsEndpoint() {
+    // Check for custom models endpoint in localStorage first
+    const customModelsEndpoint = localStorage.getItem('llmOS_ollama_models_endpoint');
+    if (customModelsEndpoint) {
+      return customModelsEndpoint;
+    }
+
+    // Use localhost for deployed environments, relative path for local development
+    if (this.isDeployed()) {
+      return 'http://localhost:11434/api/tags';
+    } else {
+      return '/api/tags';
+    }
+  }
+
   loadCustomConfig() {
     try {
       // Check for custom config in localStorage
@@ -101,10 +153,6 @@ class AppConfig {
   }
 
   // Convenience methods for common configurations
-  getOllamaEndpoint() {
-    return this.get('ollama.endpoint');
-  }
-
   getDefaultModel() {
     return this.get('ollama.defaultModel');
   }
@@ -161,6 +209,45 @@ class AppConfig {
 
   getAvailableAutomationTypes() {
     return this.get('automation.availableTypes');
+  }
+
+  /**
+   * Set a custom Ollama endpoint
+   * @param {string} endpoint - The custom endpoint URL
+   */
+  setCustomOllamaEndpoint(endpoint) {
+    localStorage.setItem('llmOS_ollama_endpoint', endpoint);
+  }
+
+  /**
+   * Set a custom Ollama models endpoint
+   * @param {string} endpoint - The custom models endpoint URL
+   */
+  setCustomOllamaModelsEndpoint(endpoint) {
+    localStorage.setItem('llmOS_ollama_models_endpoint', endpoint);
+  }
+
+  /**
+   * Clear custom Ollama endpoints and use default behavior
+   */
+  clearCustomOllamaEndpoints() {
+    localStorage.removeItem('llmOS_ollama_endpoint');
+    localStorage.removeItem('llmOS_ollama_models_endpoint');
+  }
+
+  /**
+   * Get current environment information
+   * @returns {object} Environment details
+   */
+  getEnvironmentInfo() {
+    return {
+      isDeployed: this.isDeployed(),
+      hostname: window.location.hostname,
+      protocol: window.location.protocol,
+      port: window.location.port,
+      currentOllamaEndpoint: this.getOllamaEndpoint(),
+      currentModelsEndpoint: this.getOllamaModelsEndpoint()
+    };
   }
 }
 

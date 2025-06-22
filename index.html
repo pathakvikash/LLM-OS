@@ -46,6 +46,29 @@
         </div>
       </div>
       
+      <!-- Connection Status -->
+      <div class="sidebar-section">
+        <h3>🔗 Connection Status</h3>
+        <div class="connection-info">
+          <div class="connection-status-item">
+            <span class="status-label">Status:</span>
+            <span class="status-value" id="sidebarConnectionStatus">Checking...</span>
+          </div>
+          <div class="connection-status-item">
+            <span class="status-label">Endpoint:</span>
+            <span class="status-value" id="sidebarEndpoint">Loading...</span>
+          </div>
+          <div class="connection-controls">
+            <button class="connection-btn" onclick="testConnection()" title="Test connection to Ollama">
+              🧪 Test Connection
+            </button>
+            <button class="connection-btn" onclick="showEndpointConfig()" title="Configure Ollama endpoint">
+              ⚙️ Configure
+            </button>
+          </div>
+        </div>
+      </div>
+      
       <!-- Automation Types -->
       <div class="sidebar-section">
         <h3>⚡ Automation Types</h3>

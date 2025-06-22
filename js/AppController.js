@@ -812,6 +812,11 @@ ${newContent.substring(0, 200)}${newContent.length > 200 ? '...' : ''}`;
   initializeConnectionStatus() {
     this.updateConnectionStatus('connecting', 'Connecting...');
     
+    // Initialize sidebar connection status if GlobalFunctions is available
+    if (window.globalFunctions) {
+      window.globalFunctions.updateConnectionStatus('checking', 'Checking...');
+    }
+    
     // Test connection on initialization
     this.testConnection();
     
@@ -835,13 +840,25 @@ ${newContent.substring(0, 200)}${newContent.length > 200 ? '...' : ''}`;
       
       if (result.success) {
         this.updateConnectionStatus('connected', 'Connected');
+        // Update sidebar status if GlobalFunctions is available
+        if (window.globalFunctions) {
+          window.globalFunctions.updateConnectionStatus('connected', `Connected (${result.models.length} models)`);
+        }
         this.logger.debug('Connection test successful');
       } else {
         this.updateConnectionStatus('error', 'Connection Error');
+        // Update sidebar status if GlobalFunctions is available
+        if (window.globalFunctions) {
+          window.globalFunctions.updateConnectionStatus('disconnected', 'Connection failed');
+        }
         this.logger.error('Connection test failed', result.error);
       }
     } catch (error) {
       this.updateConnectionStatus('disconnected', 'Disconnected');
+      // Update sidebar status if GlobalFunctions is available
+      if (window.globalFunctions) {
+        window.globalFunctions.updateConnectionStatus('disconnected', 'Connection error');
+      }
       this.logger.error('Connection test error', error);
     }
   }

@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Deployment Configuration Test</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 20px;
+      background: #1a1a1a;
+      color: #ffffff;
+    }
+    .test-section {
+      background: rgba(255, 255, 255, 0.1);
+      padding: 20px;
+      margin: 20px 0;
+      border-radius: 8px;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+    }
+    .status {
+      padding: 10px;
+      margin: 10px 0;
+      border-radius: 4px;
+      font-family: monospace;
+    }
+    .success { background: rgba(52, 199, 89, 0.2); border: 1px solid #34C759; }
+    .error { background: rgba(255, 59, 48, 0.2); border: 1px solid #FF3B30; }
+    .warning { background: rgba(255, 149, 0, 0.2); border: 1px solid #FF9500; }
+    button {
+      background: #007AFF;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 4px;
+      cursor: pointer;
+      margin: 5px;
+    }
+    button:hover { background: #0056CC; }
+    input[type="text"] {
+      background: rgba(255, 255, 255, 0.1);
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      color: white;
+      padding: 8px;
+      border-radius: 4px;
+      width: 300px;
+    }
+  </style>
+</head>
+<body>
+  <h1>LLM-OS Deployment Configuration Test</h1>
+  
+  <div class="test-section">
+    <h2>Environment Detection</h2>
+    <div id="envStatus" class="status">Loading...</div>
+    <button onclick="testEnvironmentDetection()">Test Environment Detection</button>
+  </div>
+  
+  <div class="test-section">
+    <h2>Endpoint Configuration</h2>
+    <div>
+      <label>Current Generate Endpoint:</label><br>
+      <input type="text" id="generateEndpoint" readonly>
+    </div>
+    <div>
+      <label>Current Models Endpoint:</label><br>
+      <input type="text" id="modelsEndpoint" readonly>
+    </div>
+    <button onclick="testEndpointConfiguration()">Test Endpoint Configuration</button>
+  </div>
+  
+  <div class="test-section">
+    <h2>Custom Endpoint Test</h2>
+    <div>
+      <label>Custom Endpoint:</label><br>
+      <input type="text" id="customEndpoint" placeholder="http://localhost:11434/api/generate">
+    </div>
+    <button onclick="setCustomEndpoint()">Set Custom Endpoint</button>
+    <button onclick="clearCustomEndpoint()">Clear Custom Endpoint</button>
+  </div>
+  
+  <div class="test-section">
+    <h2>Connection Test</h2>
+    <div id="connectionStatus" class="status">Ready to test</div>
+    <button onclick="testConnection()">Test Connection</button>
+  </div>
+
+  <script src="js/config.js"></script>
+  <script>
+    let config;
+    
+    document.addEventListener('DOMContentLoaded', () => {
+      config = new AppConfig();
+      updateDisplay();
+    });
+    
+    function updateDisplay() {
+      if (!config) return;
+      
+      document.getElementById('generateEndpoint').value = config.getOllamaEndpoint();
+      document.getElementById('modelsEndpoint').value = config.getOllamaModelsEndpoint();
+    }
+    
+    function testEnvironmentDetection() {
+      const envInfo = config.getEnvironmentInfo();
+      const status = document.getElementById('envStatus');
+      
+      status.innerHTML = `
+        <strong>Environment Info:</strong><br>
+        Hostname: ${envInfo.hostname}<br>
+        Is Deployed: ${envInfo.isDeployed}<br>
+        Protocol: ${envInfo.protocol}<br>
+        Port: ${envInfo.port || 'default'}<br>
+        Current Generate Endpoint: ${envInfo.currentOllamaEndpoint}<br>
+        Current Models Endpoint: ${envInfo.currentModelsEndpoint}
+      `;
+      
+      status.className = `status ${envInfo.isDeployed ? 'warning' : 'success'}`;
+    }
+    
+    function testEndpointConfiguration() {
+      const generateEndpoint = config.getOllamaEndpoint();
+      const modelsEndpoint = config.getOllamaModelsEndpoint();
+      const envInfo = config.getEnvironmentInfo();
+      
+      const status = document.getElementById('connectionStatus');
+      
+      if (envInfo.isDeployed && generateEndpoint.includes('localhost')) {
+        status.innerHTML = '✅ Endpoint configuration correct for deployed environment';
+        status.className = 'status success';
+      } else if (!envInfo.isDeployed && generateEndpoint.includes('/api/')) {
+        status.innerHTML = '✅ Endpoint configuration correct for local environment';
+        status.className = 'status success';
+      } else {
+        status.innerHTML = '⚠️ Endpoint configuration may need adjustment';
+        status.className = 'status warning';
+      }
+      
+      updateDisplay();
+    }
+    
+    function setCustomEndpoint() {
+      const customEndpoint = document.getElementById('customEndpoint').value.trim();
+      if (customEndpoint) {
+        config.setCustomOllamaEndpoint(customEndpoint);
+        updateDisplay();
+        document.getElementById('connectionStatus').innerHTML = '✅ Custom endpoint set';
+        document.getElementById('connectionStatus').className = 'status success';
+      }
+    }
+    
+    function clearCustomEndpoint() {
+      config.clearCustomOllamaEndpoints();
+      updateDisplay();
+      document.getElementById('connectionStatus').innerHTML = '✅ Custom endpoint cleared';
+      document.getElementById('connectionStatus').className = 'status success';
+    }
+    
+    async function testConnection() {
+      const status = document.getElementById('connectionStatus');
+      status.innerHTML = '🔄 Testing connection...';
+      status.className = 'status warning';
+      
+      try {
+        const response = await fetch(config.getOllamaModelsEndpoint(), {
+          method: 'GET',
+          headers: { 'Accept': 'application/json' },
+          mode: 'cors',
+          credentials: 'omit'
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          status.innerHTML = `✅ Connection successful! Found ${data.models?.length || 0} models`;
+          status.className = 'status success';
+        } else {
+          status.innerHTML = `❌ Connection failed: HTTP ${response.status}`;
+          status.className = 'status error';
+        }
+      } catch (error) {
+        status.innerHTML = `❌ Connection error: ${error.message}`;
+        status.className = 'status error';
+      }
+    }
+  </script>
+</body>
+</html> 

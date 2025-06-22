@@ -78,6 +78,11 @@ class GlobalFunctions {
       }
     };
     
+    // Connection management functions
+    window.testConnection = async () => this.testConnection();
+    window.showEndpointConfig = () => this.showEndpointConfig();
+    window.updateConnectionStatus = () => this.updateConnectionStatus();
+    
     this.logger.debug('Global functions setup completed');
   }
 
@@ -116,6 +121,116 @@ class GlobalFunctions {
 
   get appController() {
     return this.app;
+  }
+
+  /**
+   * Test connection to Ollama API
+   */
+  async testConnection() {
+    try {
+      if (!this.app || !this.app.ollamaAPI) {
+        throw new Error('OllamaAPI not available');
+      }
+
+      // Update status to checking
+      this.updateConnectionStatus('checking', 'Testing connection...');
+      
+      const result = await this.app.ollamaAPI.testConnection();
+      
+      if (result.success) {
+        this.updateConnectionStatus('connected', `Connected (${result.models.length} models)`);
+        this.logger.info('Connection test successful', result);
+      } else {
+        this.updateConnectionStatus('disconnected', 'Connection failed');
+        this.logger.error('Connection test failed', result);
+      }
+      
+      return result;
+    } catch (error) {
+      this.updateConnectionStatus('disconnected', 'Connection error');
+      this.logger.error('Connection test error', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * Show endpoint configuration dialog
+   */
+  showEndpointConfig() {
+    const currentEndpoint = this.config.getOllamaEndpoint();
+    const currentModelsEndpoint = this.config.getOllamaModelsEndpoint();
+    const envInfo = this.config.getEnvironmentInfo();
+    
+    const endpoint = prompt(
+      `Configure Ollama Endpoint\n\n` +
+      `Current endpoint: ${currentEndpoint}\n` +
+      `Environment: ${envInfo.isDeployed ? 'Deployed' : 'Local'}\n\n` +
+      `Enter new endpoint (or leave empty to use default):`,
+      currentEndpoint
+    );
+    
+    if (endpoint !== null) {
+      if (endpoint.trim() === '') {
+        // Clear custom endpoint to use default
+        this.config.clearCustomOllamaEndpoints();
+        this.logger.info('Cleared custom endpoints, using defaults');
+      } else {
+        // Set custom endpoint
+        this.config.setCustomOllamaEndpoint(endpoint.trim());
+        this.logger.info('Set custom Ollama endpoint', { endpoint: endpoint.trim() });
+      }
+      
+      // Reinitialize the app with new endpoints
+      this.reinitializeWithNewEndpoints();
+    }
+  }
+
+  /**
+   * Update connection status display
+   */
+  updateConnectionStatus(status = 'checking', message = 'Checking...') {
+    try {
+      const statusElement = document.getElementById('sidebarConnectionStatus');
+      const endpointElement = document.getElementById('sidebarEndpoint');
+      
+      if (statusElement) {
+        statusElement.textContent = message;
+        statusElement.className = `status-value ${status}`;
+      }
+      
+      if (endpointElement) {
+        const endpoint = this.config.getOllamaEndpoint();
+        endpointElement.textContent = endpoint;
+        endpointElement.title = endpoint;
+      }
+    } catch (error) {
+      this.logger.error('Failed to update connection status', error);
+    }
+  }
+
+  /**
+   * Reinitialize the app with new endpoints
+   */
+  reinitializeWithNewEndpoints() {
+    try {
+      // Update the OllamaAPI endpoints
+      if (this.app && this.app.ollamaAPI) {
+        this.app.ollamaAPI.endpoint = this.config.getOllamaEndpoint();
+        this.app.ollamaAPI.modelsEndpoint = this.config.getOllamaModelsEndpoint();
+        this.logger.info('Updated OllamaAPI endpoints', {
+          endpoint: this.app.ollamaAPI.endpoint,
+          modelsEndpoint: this.app.ollamaAPI.modelsEndpoint
+        });
+      }
+      
+      // Update the display
+      this.updateConnectionStatus();
+      
+      // Test the new connection
+      setTimeout(() => this.testConnection(), 500);
+    } catch (error) {
+      this.logger.error('Failed to reinitialize with new endpoints', error);
+    }
   }
 }
 

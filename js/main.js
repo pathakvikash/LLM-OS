@@ -33,6 +33,7 @@ document.addEventListener('DOMContentLoaded', () => {
     window.fileManager = fileManager;
     window.fileUI = fileUI;
     window.workspaceManager = workspaceManager;
+    window.globalFunctions = globalFunctions;
     
     // Add debug functions
     window.debugWorkspace = () => workspaceManager.debugWorkspaceState();

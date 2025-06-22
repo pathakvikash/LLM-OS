@@ -105,6 +105,33 @@ The application uses a configuration system that can be customized in `js/config
 - **File Settings**: Maximum file size, supported types
 - **Session Settings**: History limits, context management
 
+### Deployment Configuration
+
+When the application is deployed (e.g., on Vercel, Netlify, etc.), it automatically detects the deployed environment and configures Ollama endpoints to connect to your local Ollama instance:
+
+- **Automatic Detection**: The app detects deployed environments and switches to localhost endpoints
+- **Local Ollama Connection**: Uses `http://localhost:11434` for API calls when deployed
+- **Custom Configuration**: Users can configure custom endpoints via the sidebar
+- **Connection Status**: Real-time connection status monitoring in the sidebar
+
+#### Using with Local Ollama
+
+1. **Start Ollama**: Ensure Ollama is running locally: `ollama serve`
+2. **Pull Models**: Pull at least one model: `ollama pull llama2`
+3. **Access Deployed App**: Open the deployed application URL
+4. **Check Connection**: Use the "Test Connection" button in the sidebar
+5. **Configure if Needed**: Use the "Configure" button to set custom endpoints
+
+#### Custom Endpoint Configuration
+
+If you need to use a different Ollama endpoint:
+
+1. Click the "⚙️ Configure" button in the Connection Status section
+2. Enter your custom endpoint (e.g., `http://192.168.1.100:11434/api/generate`)
+3. The app will test the connection and update the status
+
+**Note**: For security reasons, ensure your Ollama instance is properly configured for network access if using a custom endpoint.
+
 ## Development
 
 ### Project Structure
