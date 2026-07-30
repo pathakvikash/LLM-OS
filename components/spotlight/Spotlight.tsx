@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, type ComponentType } from "react";
+import { useMemo, useState, type ComponentType } from "react";
 import * as Dialog from "@radix-ui/react-dialog";
 import { AnimatePresence, motion } from "framer-motion";
 import { useLiveQuery } from "dexie-react-hooks";
@@ -8,7 +8,7 @@ import Fuse from "fuse.js";
 import { Folder, File as FileIcon, Search } from "lucide-react";
 import { getSpotlightApps, type AppIconProps } from "@/lib/apps/registry";
 import { db } from "@/lib/fs/db";
-import { ROOT_ID } from "@/lib/fs/vfs";
+import { ROOT_ID, type FSNode } from "@/lib/fs/vfs";
 import { useWindowStore } from "@/stores/useWindowStore";
 import { useSpotlightStore } from "@/stores/useSpotlightStore";
 import { useFinderTarget } from "@/stores/useFinderTarget";
@@ -22,6 +22,8 @@ interface SpotlightResult {
   icon?: ComponentType<AppIconProps>;
 }
 
+const EMPTY_NODES: FSNode[] = [];
+
 export default function Spotlight() {
   const isOpen = useSpotlightStore((s) => s.isOpen);
   const close = useSpotlightStore((s) => s.close);
@@ -31,7 +33,7 @@ export default function Spotlight() {
   const [selectedIndex, setSelectedIndex] = useState(0);
 
   const apps = useMemo(() => getSpotlightApps(), []);
-  const nodes = useLiveQuery(() => db.nodes.toArray(), []) ?? [];
+  const nodes = useLiveQuery(() => db.nodes.toArray(), []) ?? EMPTY_NODES;
 
   const corpus = useMemo<SpotlightResult[]>(() => {
     const appItems: SpotlightResult[] = apps.map((a) => ({
@@ -63,13 +65,20 @@ export default function Spotlight() {
       .slice(0, 8);
   }, [query, fuse, corpus]);
 
-  useEffect(() => {
+  // Reset selection/query when the query or open-state changes, adjusted
+  // during render (React's documented pattern for this) rather than in an
+  // effect, since these are pure resets with no external system involved.
+  const [prevQuery, setPrevQuery] = useState(query);
+  if (query !== prevQuery) {
+    setPrevQuery(query);
     setSelectedIndex(0);
-  }, [query, isOpen]);
+  }
 
-  useEffect(() => {
+  const [prevIsOpen, setPrevIsOpen] = useState(isOpen);
+  if (isOpen !== prevIsOpen) {
+    setPrevIsOpen(isOpen);
     if (!isOpen) setQuery("");
-  }, [isOpen]);
+  }
 
   function launch(result: SpotlightResult) {
     if (result.kind === "app") {

@@ -13,6 +13,10 @@ function Clock() {
   const [now, setNow] = useState<Date | null>(null);
 
   useEffect(() => {
+    // Deliberately client-only: rendering the real time during SSR would
+    // mismatch the client's clock at hydration, so it starts null and is
+    // set here instead of at useState-init time.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setNow(new Date());
     const id = setInterval(() => setNow(new Date()), 1000 * 15);
     return () => clearInterval(id);

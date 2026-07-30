@@ -13,6 +13,8 @@ import FinderIconView from "./FinderIconView";
 import FinderListView from "./FinderListView";
 import FilePreview from "./FilePreview";
 
+const EMPTY_ITEMS: FSNode[] = [];
+
 export default function FinderApp({ windowId }: WindowAppProps) {
   const [ready, setReady] = useState(false);
   const [history, setHistory] = useState<string[]>([ROOT_ID]);
@@ -29,7 +31,7 @@ export default function FinderApp({ windowId }: WindowAppProps) {
     ensureSeeded().then(() => setReady(true));
   }, []);
 
-  const items = useLiveQuery(() => (ready ? list(cwdId) : []), [ready, cwdId]) ?? [];
+  const items = useLiveQuery(() => (ready ? list(cwdId) : []), [ready, cwdId]) ?? EMPTY_ITEMS;
   const path = useLiveQuery(() => (ready ? getPath(cwdId) : "/"), [ready, cwdId]) ?? "/";
 
   const navigate = useCallback(
@@ -52,10 +54,14 @@ export default function FinderApp({ windowId }: WindowAppProps) {
     setPreviewNode(null);
   }, [history.length]);
 
+  // Spotlight (or anything else) can ask this Finder instance to jump to a
+  // folder via useFinderTarget — a rare, user-initiated cross-store signal,
+  // not a hot render path, so the imperative navigate() here is intentional.
   const pendingFolderId = useFinderTarget((s) => s.pendingFolderId);
   useEffect(() => {
     if (!ready || !pendingFolderId) return;
     const id = useFinderTarget.getState().consume();
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (id) navigate(id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ready, pendingFolderId]);
@@ -134,7 +140,7 @@ export default function FinderApp({ windowId }: WindowAppProps) {
       <FinderSidebar cwdId={cwdId} onNavigate={navigate} />
       <div className="flex min-w-0 flex-1 flex-col">
         {previewNode ? (
-          <FilePreview node={previewNode} onBack={() => setPreviewNode(null)} />
+          <FilePreview key={previewNode.id} node={previewNode} onBack={() => setPreviewNode(null)} />
         ) : (
           <>
             <FinderToolbar

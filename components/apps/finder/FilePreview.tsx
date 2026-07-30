@@ -17,13 +17,10 @@ export default function FilePreview({ node, onBack }: FilePreviewProps) {
     /\.(txt|md|json|js|ts|tsx|css|html|csv|log)$/i.test(node.name);
   const isImage = node.mimeType?.startsWith("image/");
 
+  // FinderApp keys this component by node.id, so remounting (not an effect)
+  // resets text/dirty whenever a different file is opened.
   const [text, setText] = useState(typeof node.content === "string" ? node.content : "");
   const [dirty, setDirty] = useState(false);
-
-  useEffect(() => {
-    setText(typeof node.content === "string" ? node.content : "");
-    setDirty(false);
-  }, [node.id, node.content]);
 
   const imageUrl = useMemo(() => {
     if (isImage && node.content instanceof Blob) return URL.createObjectURL(node.content);

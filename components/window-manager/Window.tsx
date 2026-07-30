@@ -6,6 +6,7 @@ import { getApp } from "@/lib/apps/registry";
 import { useDraggable } from "./useDraggable";
 import { useResizable, type ResizeDirection } from "./useResizable";
 import TrafficLights from "./TrafficLights";
+import AppErrorBoundary from "./AppErrorBoundary";
 
 const RESIZE_HANDLES: { dir: ResizeDirection; className: string }[] = [
   { dir: "n", className: "top-0 left-2 right-2 h-1.5 cursor-ns-resize" },
@@ -89,7 +90,9 @@ export default function Window({ win }: { win: WindowState }) {
       </div>
 
       <div className="min-h-0 flex-1 overflow-auto">
-        <AppComponent windowId={win.id} />
+        <AppErrorBoundary appName={app.name}>
+          <AppComponent windowId={win.id} />
+        </AppErrorBoundary>
       </div>
 
       {!win.isMaximized &&
