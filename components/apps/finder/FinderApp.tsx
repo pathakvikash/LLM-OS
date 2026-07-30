@@ -6,6 +6,7 @@ import { ROOT_ID, list, getPath, mkdir, rm, rename, writeFile, type FSNode } fro
 import { ensureSeeded } from "@/lib/fs/seed";
 import type { WindowAppProps } from "@/lib/apps/registry";
 import { useMenuCommand } from "@/lib/commands/menuBus";
+import { useFinderTarget } from "@/stores/useFinderTarget";
 import FinderSidebar from "./FinderSidebar";
 import FinderToolbar from "./FinderToolbar";
 import FinderIconView from "./FinderIconView";
@@ -50,6 +51,14 @@ export default function FinderApp({ windowId }: WindowAppProps) {
     setHistoryIndex((i) => Math.min(history.length - 1, i + 1));
     setPreviewNode(null);
   }, [history.length]);
+
+  const pendingFolderId = useFinderTarget((s) => s.pendingFolderId);
+  useEffect(() => {
+    if (!ready || !pendingFolderId) return;
+    const id = useFinderTarget.getState().consume();
+    if (id) navigate(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ready, pendingFolderId]);
 
   const openItem = useCallback(
     (node: FSNode) => {

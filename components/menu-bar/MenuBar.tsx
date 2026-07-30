@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Search, Wifi } from "lucide-react";
 import { useWindowStore } from "@/stores/useWindowStore";
+import { useSpotlightStore } from "@/stores/useSpotlightStore";
 import { getApp, type MenuItemDefinition } from "@/lib/apps/registry";
 import { emitMenuCommand } from "@/lib/commands/menuBus";
 import MenuDropdown from "./MenuDropdown";
@@ -33,6 +34,7 @@ export default function MenuBar() {
   const closeWindow = useWindowStore((s) => s.closeWindow);
   const minimizeWindow = useWindowStore((s) => s.minimizeWindow);
   const toggleMaximize = useWindowStore((s) => s.toggleMaximize);
+  const openSpotlight = useSpotlightStore((s) => s.open);
 
   const focusedWindow = focusedWindowId ? windows[focusedWindowId] : null;
   const activeApp = focusedWindow ? getApp(focusedWindow.appId) : getApp("finder");
@@ -60,6 +62,9 @@ export default function MenuBar() {
       </div>
       <div className="flex items-center gap-3" style={{ color: "var(--text-secondary)" }}>
         <Wifi size={14} />
+        <button aria-label="Spotlight Search" onClick={openSpotlight} className="flex items-center">
+          <Search size={14} />
+        </button>
         <Clock />
       </div>
     </div>
