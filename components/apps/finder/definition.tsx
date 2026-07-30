@@ -1,21 +1,25 @@
 import { Folder } from "lucide-react";
-import type { AppDefinition } from "@/lib/apps/registry";
+import type { AppDefinition, MenuDefinition } from "@/lib/apps/registry";
 import { withDefaultMenus } from "@/lib/apps/registry";
-import ComingSoon from "@/components/apps/shared/ComingSoon";
+import FinderApp from "./FinderApp";
 
-function FinderPlaceholder() {
-  return <ComingSoon name="Finder" icon={Folder} />;
-}
+const FILE_MENU: MenuDefinition = {
+  label: "File",
+  items: [
+    { label: "New Folder", shortcut: "⇧⌘N", commandId: "finder:new-folder" },
+    { label: "Delete", shortcut: "⌫", commandId: "finder:delete" },
+  ],
+};
 
 export const finderAppDefinition: AppDefinition = {
   id: "finder",
   name: "Finder",
   icon: Folder,
-  component: FinderPlaceholder,
-  defaultSize: { width: 720, height: 480 },
-  minSize: { width: 420, height: 300 },
+  component: FinderApp,
+  defaultSize: { width: 760, height: 500 },
+  minSize: { width: 460, height: 320 },
   singleton: true,
-  menus: withDefaultMenus(),
+  menus: withDefaultMenus([FILE_MENU]),
   showInDock: true,
   showInSpotlight: true,
 };
