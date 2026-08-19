@@ -2,7 +2,7 @@
 
 :root {
   --glass-bg: rgba(255, 255, 255, 0.08);
-  --glass-bg-strong: rgba(255, 255, 255, 0.16);
+  --glass-bg-strong: rgba(32, 34, 40, 0.92);
   --glass-border: rgba(255, 255, 255, 0.12);
   --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.35);
   --glass-blur: blur(20px) saturate(180%);
