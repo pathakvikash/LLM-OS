@@ -78,6 +78,7 @@ export const useWindowStore = create<WindowStoreState>()(
           .sort((a, b) => b.zIndex - a.zIndex)[0];
         if (existing) {
           if (existing.isMinimized) get().restoreWindow(existing.id);
+          else if (get().focusedWindowId === existing.id) get().minimizeWindow(existing.id);
           else get().focusWindow(existing.id);
           return existing.id;
         }
