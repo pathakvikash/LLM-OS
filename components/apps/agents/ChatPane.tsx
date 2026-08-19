@@ -1,0 +1,428 @@
+"use client";
+
+import { useEffect, useRef, useState } from "react";
+import { ArrowUp, Ban, Check, CornerDownRight, MessagesSquare, Pencil, Plus, ShieldQuestion, Trash2 } from "lucide-react";
+import { isActive, runProgress } from "@/lib/agents/engine";
+import { routeMessage } from "@/lib/agents/orchestrator";
+import { stripPleasantries } from "@/lib/agents/conversation";
+import type { AgentDefinition, AgentRun, ChatSession, PendingApproval, Skill } from "@/lib/agents/types";
+import { formatClockTime, formatDuration, formatRelativeTime } from "@/lib/utils/format";
+import { runElapsedMs } from "@/lib/agents/engine";
+import { AgentGlyph, Button, Chip, EmptyState, Meter, StatusBadge, STATUS_META, inputClass, inputStyle } from "./parts";
+
+/** One dispatched run, rendered live inside the conversation. */
+function RunCard({
+  run,
+  now,
+  delegated,
+  approval,
+  onOpen,
+  onCancel,
+  onDecide,
+}: {
+  run: AgentRun;
+  now: number;
+  /** Runs this one handed off, rendered beneath it. */
+  delegated?: AgentRun[];
+  approval?: PendingApproval;
+  onOpen: () => void;
+  onCancel: () => void;
+  onDecide?: (decision: "approved" | "denied") => void;
+}) {
+  const tone = STATUS_META[run.status].color;
+  const done = run.steps.filter((s) => s.status !== "pending" && s.status !== "running").length;
+
+  return (
+    <div
+      className="rounded-(--radius-sm) border p-2.5"
+      style={{ borderColor: "var(--glass-border)", background: "var(--glass-bg)" }}
+    >
+      <div className="flex items-center gap-1.5">
+        <AgentGlyph iconKey={run.agentIconKey} color={run.agentColor} size={13} />
+        <button onClick={onOpen} className="text-[12px] font-medium hover:underline">
+          {run.agentName}
+        </button>
+        <Chip tone="var(--accent-secondary)">{run.skillName}</Chip>
+        {run.modelId && (
+          <Chip tone="var(--accent-primary)" title="Planned by a model rather than the built-in rules">
+            {run.modelId}
+          </Chip>
+        )}
+        <span className="ml-auto flex items-center gap-1.5">
+          <span className="text-[10px] tabular-nums" style={{ color: "var(--text-muted)" }}>
+            {done}/{run.steps.length} · {formatDuration(runElapsedMs(run, now))}
+          </span>
+          <StatusBadge status={run.status} />
+          {isActive(run) && (
+            <Button onClick={onCancel} title="Cancel this run">
+              <Ban size={11} />
+            </Button>
+          )}
+        </span>
+      </div>
+
+      <div className="mt-2">
+        <Meter value={runProgress(run, now)} tone={tone} />
+      </div>
+
+      <ol className="mt-2 space-y-0.5">
+        {run.steps.map((step, i) => (
+          <li key={step.id} className="flex gap-1.5 text-[11px]">
+            <span className="w-3 shrink-0 tabular-nums" style={{ color: "var(--text-muted)" }}>
+              {i + 1}
+            </span>
+            <span
+              className="min-w-0"
+              style={{
+                color:
+                  step.status === "pending"
+                    ? "var(--text-muted)"
+                    : step.status === "failed"
+                      ? "var(--danger)"
+                      : "var(--text-secondary)",
+              }}
+            >
+              {step.name}
+              {step.result && ` — ${step.result}`}
+              {step.error && ` — ${step.error}`}
+            </span>
+          </li>
+        ))}
+      </ol>
+
+      {approval && onDecide && (
+        <div
+          className="mt-2 rounded-(--radius-sm) border p-2"
+          style={{
+            borderColor: "color-mix(in srgb, var(--warning) 45%, transparent)",
+            background: "color-mix(in srgb, var(--warning) 10%, transparent)",
+          }}
+        >
+          <div className="flex items-center gap-1.5 text-[11px]">
+            <ShieldQuestion size={12} style={{ color: "var(--warning)" }} />
+            <span style={{ color: "var(--text-primary)" }}>{approval.summary}</span>
+          </div>
+          <div className="mt-1.5 flex gap-1.5">
+            <Button variant="primary" onClick={() => onDecide("approved")}>
+              Allow
+            </Button>
+            <Button onClick={() => onDecide("denied")}>Decline</Button>
+          </div>
+        </div>
+      )}
+
+      {run.error && (
+        <p className="mt-1.5 text-[11px]" style={{ color: "var(--danger)" }}>
+          {run.error}
+        </p>
+      )}
+
+      {delegated && delegated.length > 0 && (
+        <div className="mt-2 space-y-1.5 border-l pl-2" style={{ borderColor: "var(--glass-border)" }}>
+          {delegated.map((child) => (
+            <div key={child.id} className="flex items-center gap-1.5 text-[11px]">
+              <CornerDownRight size={11} style={{ color: "var(--text-muted)" }} />
+              <AgentGlyph iconKey={child.agentIconKey} color={child.agentColor} size={11} />
+              <span className="font-medium">{child.agentName}</span>
+              <span className="min-w-0 truncate" style={{ color: "var(--text-secondary)" }}>
+                {child.task}
+              </span>
+              <span className="ml-auto shrink-0">
+                <StatusBadge status={child.status} compact />
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function replyFor(runs: AgentRun[]): string | null {
+  if (runs.length === 0 || runs.some(isActive)) return null;
+  const failed = runs.filter((r) => r.status === "failed");
+  const cancelled = runs.filter((r) => r.status === "cancelled");
+  const done = runs.filter((r) => r.status === "succeeded");
+
+  const parts: string[] = [];
+  if (done.length > 0) {
+    const actions = done.flatMap((r) => r.steps.filter((s) => s.status === "done").length);
+    parts.push(`Done — ${actions.reduce((a, b) => a + b, 0)} actions across ${done.length} run${done.length === 1 ? "" : "s"}.`);
+  }
+  if (failed.length > 0) parts.push(`${failed.length} failed: ${failed.map((r) => r.error).join(" · ")}`);
+  if (cancelled.length > 0) parts.push(`${cancelled.length} cancelled.`);
+  return parts.join(" ");
+}
+
+export default function ChatPane({
+  appNames,
+  sessions,
+  activeSessionId,
+  runs,
+  agents,
+  skills,
+  now,
+  pendingApprovals,
+  modelReady,
+  onSend,
+  onDecideApproval,
+  onNewSession,
+  onSelectSession,
+  onRenameSession,
+  onDeleteSession,
+  onOpenRun,
+  onCancelRun,
+}: {
+  appNames: string[];
+  sessions: ChatSession[];
+  activeSessionId: string | null;
+  runs: AgentRun[];
+  agents: AgentDefinition[];
+  skills: Skill[];
+  now: number;
+  pendingApprovals: PendingApproval[];
+  /** Whether a model is configured, which widens what can be attempted. */
+  modelReady: boolean;
+  onSend: (text: string) => void;
+  onDecideApproval: (runId: string, decision: "approved" | "denied") => void;
+  onNewSession: () => void;
+  onSelectSession: (id: string) => void;
+  onRenameSession: (id: string, title: string) => void;
+  onDeleteSession: (id: string) => void;
+  onOpenRun: (id: string) => void;
+  onCancelRun: (id: string) => void;
+}) {
+  const [draft, setDraft] = useState("");
+  const [renamingId, setRenamingId] = useState<string | null>(null);
+  const [renameDraft, setRenameDraft] = useState("");
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  const active = sessions.find((s) => s.id === activeSessionId);
+  const chat = active?.messages ?? [];
+  const lastKey = `${active?.id ?? ""}:${chat.length}:${runs.filter(isActive).length}`;
+
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (el) el.scrollTop = el.scrollHeight;
+  }, [lastKey]);
+
+  // Preview of where the message would go, shown under the composer as you type.
+  const request = stripPleasantries(draft.trim());
+  const preview = draft.trim() ? routeMessage(request || draft.trim(), agents, skills, appNames, undefined, modelReady) : null;
+  const routed = Boolean(request) && (preview?.assignments.length ?? 0) > 0;
+
+  function send() {
+    const text = draft.trim();
+    if (!text) return;
+    onSend(text);
+    setDraft("");
+  }
+
+  return (
+    <div className="flex h-full min-h-0">
+      <div className="flex w-44 shrink-0 flex-col border-r" style={{ borderColor: "var(--glass-border)" }}>
+        <div className="flex items-center justify-between px-2 py-2">
+          <span className="text-[11px] font-semibold" style={{ color: "var(--text-secondary)" }}>
+            Sessions
+          </span>
+          <Button onClick={onNewSession} title="Start a new session">
+            <Plus size={12} />
+          </Button>
+        </div>
+        <div className="min-h-0 flex-1 overflow-auto px-1.5 pb-2">
+          {sessions.length === 0 ? (
+            <p className="px-1.5 text-[11px]" style={{ color: "var(--text-muted)" }}>
+              No sessions yet — send a message to start one.
+            </p>
+          ) : (
+            sessions.map((session) => {
+              const selected = session.id === activeSessionId;
+              const renaming = renamingId === session.id;
+              return (
+                <div
+                  key={session.id}
+                  className="group mb-1 rounded-md px-2 py-1.5"
+                  style={{
+                    background: selected ? "color-mix(in srgb, var(--accent-primary) 20%, transparent)" : "transparent",
+                  }}
+                >
+                  {renaming ? (
+                    <div className="flex items-center gap-1">
+                      <input
+                        autoFocus
+                        value={renameDraft}
+                        onChange={(e) => setRenameDraft(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            onRenameSession(session.id, renameDraft);
+                            setRenamingId(null);
+                          }
+                          if (e.key === "Escape") setRenamingId(null);
+                        }}
+                        className={`${inputClass} px-1.5 py-0.5 text-[11px]`}
+                        style={inputStyle}
+                      />
+                      <Button
+                        onClick={() => {
+                          onRenameSession(session.id, renameDraft);
+                          setRenamingId(null);
+                        }}
+                        title="Save name"
+                      >
+                        <Check size={11} />
+                      </Button>
+                    </div>
+                  ) : (
+                    <>
+                      <button
+                        onClick={() => onSelectSession(session.id)}
+                        className="block w-full truncate text-left text-[12px]"
+                      >
+                        {session.title}
+                      </button>
+                      <div className="mt-0.5 flex items-center gap-1">
+                        <span className="text-[10px]" style={{ color: "var(--text-muted)" }}>
+                          {session.messages.length} msg · {formatRelativeTime(session.updatedAt, now)}
+                        </span>
+                        <span className="ml-auto flex gap-0.5 opacity-0 transition-opacity group-hover:opacity-100">
+                          <button
+                            onClick={() => {
+                              setRenamingId(session.id);
+                              setRenameDraft(session.title);
+                            }}
+                            aria-label="Rename session"
+                            className="rounded p-0.5"
+                          >
+                            <Pencil size={10} style={{ color: "var(--text-muted)" }} />
+                          </button>
+                          <button
+                            onClick={() => onDeleteSession(session.id)}
+                            aria-label="Delete session"
+                            className="rounded p-0.5"
+                          >
+                            <Trash2 size={10} style={{ color: "var(--danger)" }} />
+                          </button>
+                        </span>
+                      </div>
+                    </>
+                  )}
+                </div>
+              );
+            })
+          )}
+        </div>
+      </div>
+
+      <div className="flex min-w-0 flex-1 flex-col">
+      <div ref={scrollRef} className="min-h-0 flex-1 space-y-3 overflow-auto p-4">
+        {chat.length === 0 ? (
+          <EmptyState
+            icon={<MessagesSquare size={26} strokeWidth={1.5} />}
+            title="Ask for something and the orchestrator picks the agent"
+            hint="Try: “open Terminal and run ls”, “tidy my documents”, or “switch to light mode with a purple accent”. Follow-ups can say “it” — the last run's file or app carries over."
+          />
+        ) : (
+          chat.map((message) => {
+            const dispatched = (message.runIds ?? [])
+              .map((id) => runs.find((r) => r.id === id))
+              .filter((r): r is AgentRun => Boolean(r));
+            const reply = replyFor(dispatched);
+
+            return (
+              <div key={message.id} className="space-y-2">
+                {message.role === "user" ? (
+                  <div className="flex justify-end">
+                    <div
+                      className="max-w-[80%] rounded-(--radius-sm) px-3 py-2 text-[12px]"
+                      style={{ background: "var(--accent-primary)", color: "white" }}
+                    >
+                      {message.text}
+                      <div className="mt-0.5 text-[10px] opacity-70">{formatClockTime(message.ts)}</div>
+                    </div>
+                  </div>
+                ) : (
+                  <div
+                    className="rounded-(--radius-sm) border border-dashed px-3 py-2 text-[11px] whitespace-pre-line"
+                    style={{ borderColor: "var(--glass-border)", color: "var(--text-secondary)" }}
+                  >
+                    {message.text}
+                  </div>
+                )}
+
+                {dispatched.length > 0 && (
+                  <div className="space-y-1.5">
+                    {dispatched.length > 1 && (
+                      <div className="text-[11px]" style={{ color: "var(--text-muted)" }}>
+                        Delegated to {dispatched.map((r) => r.agentName).join(", ")}
+                      </div>
+                    )}
+                    {dispatched.map((run) => (
+                      <RunCard
+                        key={run.id}
+                        run={run}
+                        now={now}
+                        delegated={runs.filter((r) => r.parentRunId === run.id)}
+                        approval={pendingApprovals.find((a) => a.runId === run.id)}
+                        onOpen={() => onOpenRun(run.id)}
+                        onCancel={() => onCancelRun(run.id)}
+                        onDecide={(decision) => onDecideApproval(run.id, decision)}
+                      />
+                    ))}
+                    {reply && (
+                      <div className="text-[12px]" style={{ color: "var(--text-secondary)" }}>
+                        {reply}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })
+        )}
+      </div>
+
+      <div className="shrink-0 border-t p-3" style={{ borderColor: "var(--glass-border)" }}>
+        {preview && (
+          <div className="mb-1.5 flex flex-wrap items-center gap-1 text-[11px]" style={{ color: "var(--text-muted)" }}>
+            {routed ? (
+              <>
+                Routes to:
+                {preview.assignments.map((a, i) => (
+                  <Chip key={i} tone={a.agent.color}>
+                    {a.agent.name} · {a.skill.name}
+                  </Chip>
+                ))}
+              </>
+            ) : (
+              <span>I&apos;ll answer this one myself — no agent needed.</span>
+            )}
+            {preview.unroutable.length > 0 && routed && (
+              <span style={{ color: "var(--warning)" }}>· unhandled: {preview.unroutable.join(" · ")}</span>
+            )}
+          </div>
+        )}
+
+        <div className="flex items-end gap-1.5">
+          <textarea
+            rows={2}
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();
+                send();
+              }
+            }}
+            placeholder="Tell the fleet what to do…"
+            className={`${inputClass} resize-none font-[inherit]`}
+            style={inputStyle}
+          />
+          <Button variant="primary" onClick={send} disabled={!draft.trim()} title="Send (Enter)">
+            <ArrowUp size={13} strokeWidth={2.5} />
+          </Button>
+        </div>
+      </div>
+      </div>
+    </div>
+  );
+}

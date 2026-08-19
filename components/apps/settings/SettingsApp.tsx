@@ -1,18 +1,20 @@
 "use client";
 
 import { useState } from "react";
-import { Palette, Image as ImageIcon, LayoutGrid, Volume2, Info } from "lucide-react";
+import { Palette, Image as ImageIcon, LayoutGrid, Sparkles, Volume2, Info } from "lucide-react";
 import AppearancePane from "./panes/AppearancePane";
 import WallpaperPane from "./panes/WallpaperPane";
 import DockPane from "./panes/DockPane";
 import SoundPane from "./panes/SoundPane";
 import AboutPane from "./panes/AboutPane";
+import AiPane from "./panes/AiPane";
 
 const PANES = [
   { id: "appearance", label: "Appearance", icon: Palette, Component: AppearancePane },
   { id: "wallpaper", label: "Wallpaper", icon: ImageIcon, Component: WallpaperPane },
   { id: "dock", label: "Dock", icon: LayoutGrid, Component: DockPane },
   { id: "sound", label: "Sound", icon: Volume2, Component: SoundPane },
+  { id: "ai", label: "AI", icon: Sparkles, Component: AiPane },
   { id: "about", label: "About", icon: Info, Component: AboutPane },
 ];
 

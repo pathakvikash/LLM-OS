@@ -44,10 +44,29 @@ export const cat: CommandFn = async (args, ctx) => {
   return { error: `cat: ${args[0]}: binary file (cannot display)` };
 };
 
+/**
+ * Splits "Documents/notes.txt" into the folder to create it in and the leaf
+ * name, so `mkdir` and `touch` accept a path like every other command here.
+ */
+async function resolveParent(
+  cwdId: string,
+  target: string
+): Promise<{ parentId: string; name: string } | null> {
+  const clean = target.replace(/\/+$/, "");
+  const index = clean.lastIndexOf("/");
+  if (index === -1) return { parentId: cwdId, name: clean };
+
+  const parent = await resolvePath(cwdId, index === 0 ? "/" : clean.slice(0, index));
+  if (!parent || parent.type !== "folder") return null;
+  return { parentId: parent.id, name: clean.slice(index + 1) };
+}
+
 export const mkdirCmd: CommandFn = async (args, ctx) => {
   if (!args[0]) return { error: "usage: mkdir <name>" };
+  const target = await resolveParent(ctx.cwdId, args[0]);
+  if (!target || !target.name) return { error: `mkdir: ${args[0]}: No such file or directory` };
   try {
-    await vfsMkdir(ctx.cwdId, args[0]);
+    await vfsMkdir(target.parentId, target.name);
     return {};
   } catch (e) {
     return { error: `mkdir: ${(e as Error).message}` };
@@ -56,8 +75,10 @@ export const mkdirCmd: CommandFn = async (args, ctx) => {
 
 export const touch: CommandFn = async (args, ctx) => {
   if (!args[0]) return { error: "usage: touch <name>" };
-  const existing = await getChildByName(ctx.cwdId, args[0]);
-  if (!existing) await writeFile(ctx.cwdId, args[0], "");
+  const target = await resolveParent(ctx.cwdId, args[0]);
+  if (!target || !target.name) return { error: `touch: ${args[0]}: No such file or directory` };
+  const existing = await getChildByName(target.parentId, target.name);
+  if (!existing) await writeFile(target.parentId, target.name, "");
   return {};
 };
 
