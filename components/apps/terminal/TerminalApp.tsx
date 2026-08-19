@@ -6,6 +6,7 @@ import { ensureSeeded } from "@/lib/fs/seed";
 import { COMMANDS } from "./commands";
 import type { WindowAppProps } from "@/lib/apps/registry";
 import { useMenuCommand } from "@/lib/commands/menuBus";
+import { useTerminalActivity } from "@/lib/commands/terminalBus";
 
 interface Line {
   id: string;
@@ -57,6 +58,24 @@ export default function TerminalApp({ windowId }: WindowAppProps) {
   function pushLine(type: Line["type"], text: string) {
     setLines((prev) => [...prev, { id: crypto.randomUUID(), type, text }]);
   }
+
+  // Commands an agent runs land here too, so its work is visible in the shell.
+  useTerminalActivity(
+    useCallback((activity) => {
+      setLines((prev) => [
+        ...prev,
+        { id: `${activity.id}-in`, type: "input" as const, text: `${activity.actor}@llm-os ~ % ${activity.command}` },
+        ...(activity.output
+          ? activity.output
+              .split("\n")
+              .map((text, i) => ({ id: `${activity.id}-out-${i}`, type: "output" as const, text }))
+          : []),
+        ...(activity.error
+          ? [{ id: `${activity.id}-err`, type: "error" as const, text: activity.error }]
+          : []),
+      ]);
+    }, [])
+  );
 
   function promptLabel(pathOverride?: string) {
     const p = pathOverride ?? promptPath;
