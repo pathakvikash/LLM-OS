@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import "@/lib/apps/install";
 import { ensureSeeded } from "@/lib/fs/seed";
 import { startAgentRuntime, stopAgentRuntime } from "@/lib/agents/runtime";
+import { useLlmStore } from "@/stores/useLlmStore";
 import Wallpaper from "@/components/desktop/Wallpaper";
 import MenuBar from "@/components/menu-bar/MenuBar";
 import Dock from "@/components/dock/Dock";
@@ -22,6 +23,12 @@ export default function Desktop() {
   useEffect(() => {
     startAgentRuntime();
     return stopAgentRuntime;
+  }, []);
+
+  // If this deployment holds a key in its environment, agents can use it
+  // without the operator ever typing one.
+  useEffect(() => {
+    void useLlmStore.getState().detectServerKeys();
   }, []);
 
   return (

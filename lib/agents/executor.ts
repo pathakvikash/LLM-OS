@@ -13,6 +13,8 @@ import {
   stepDwell,
 } from "./engine";
 import { renderTemplate } from "./skills";
+import { executeModelRun } from "./modelRunner";
+import { isLlmReady } from "@/stores/useLlmStore";
 import type { AgentRun } from "./types";
 
 /**
@@ -84,6 +86,20 @@ export async function executeRun(runId: string): Promise<void> {
     return;
   }
 
+  // With a key configured the model decides the steps; without one — or if the
+  // call fails for any reason — the pre-planned rule steps run instead.
+  if (isLlmReady()) {
+    const outcome = await executeModelRun(runId, agent);
+    if (outcome.ok) return;
+    update(runId, (run) => ({
+      ...run,
+      events: [
+        ...run.events,
+        event("system", `Model unavailable (${outcome.fallbackReason}) — planning with rules`, Date.now()),
+      ],
+    }));
+  }
+
   const vars: Record<string, string> = { ...start.vars, agent: agent.name, model: agent.model };
   const details: string[] = [];
 
@@ -136,7 +152,7 @@ export async function executeRun(runId: string): Promise<void> {
     }
 
     try {
-      const result = await action.run(params, { agentName: agent.name });
+      const result = await action.run(params, { agentName: agent.name, runId });
       useAgentStore.getState().noteConnectorUse(action.connectorId, Date.now());
       Object.assign(vars, result.vars ?? {});
       if (result.detail && details.length < MAX_DETAILS) {

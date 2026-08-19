@@ -226,7 +226,7 @@ export function cancelRunState(
   now: number,
   reason = "Cancelled by operator"
 ): AgentRun {
-  if (run.status !== "running" && run.status !== "queued") return run;
+  if (!isActive(run)) return run;
   return {
     ...run,
     status: "cancelled",
@@ -241,7 +241,7 @@ export function cancelRunState(
 }
 
 export function isActive(run: AgentRun): boolean {
-  return run.status === "running" || run.status === "queued";
+  return run.status === "running" || run.status === "queued" || run.status === "awaiting";
 }
 
 /** 0–1, interpolating inside the running step so meters move between ticks. */

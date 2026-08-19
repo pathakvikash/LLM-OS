@@ -18,6 +18,7 @@ import { getAllApps, type WindowAppProps } from "@/lib/apps/registry";
 import { useMenuCommand } from "@/lib/commands/menuBus";
 import { useWindowStore } from "@/stores/useWindowStore";
 import { useAgentStore } from "@/stores/useAgentStore";
+import { useLlmStore } from "@/stores/useLlmStore";
 import { cn } from "@/lib/utils/cn";
 import { isActive } from "@/lib/agents/engine";
 import type { AgentDefinition, Skill } from "@/lib/agents/types";
@@ -100,6 +101,13 @@ export default function AgentsApp({ windowId }: WindowAppProps) {
   const connectors = useAgentStore((s) => s.connectors);
   const systemPrompt = useAgentStore((s) => s.systemPrompt);
   const sessions = useAgentStore((s) => s.sessions);
+  const pendingApprovals = useAgentStore((s) => s.pendingApprovals);
+  // Re-reads on any LLM setting change, so the composer preview stays honest.
+  const modelReady = useLlmStore(
+    (s) =>
+      Boolean(s.enabled && s.status !== "error" && s.chosenModels[s.providerId]) &&
+      Boolean(s.keys[s.providerId] || s.serverBacked.includes(s.providerId))
+  );
   const activeSessionId = useAgentStore((s) => s.activeSessionId);
   const maxConcurrent = useAgentStore((s) => s.maxConcurrent);
   const fleetPaused = useAgentStore((s) => s.fleetPaused);
@@ -292,6 +300,9 @@ export default function AgentsApp({ windowId }: WindowAppProps) {
               appNames={getAllApps().map((a) => a.name)}
               sessions={sessions}
               activeSessionId={activeSessionId}
+              pendingApprovals={pendingApprovals}
+              modelReady={modelReady}
+              onDecideApproval={(id, decision) => useAgentStore.getState().resolveApproval(id, decision)}
               runs={runs}
               agents={agents}
               skills={skills}

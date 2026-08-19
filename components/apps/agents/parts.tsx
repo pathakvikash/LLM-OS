@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, type ReactNode } from "react";
-import { Ban, Check, CircleAlert, Clock, LoaderCircle, Trash2, X } from "lucide-react";
+import { Ban, Check, CircleAlert, Clock, LoaderCircle, ShieldQuestion, Trash2, X } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
 import { AGENT_ICON_KEYS, AGENT_ICONS, DEFAULT_AGENT_ICON } from "@/lib/agents/icons";
 import type { RunStatus, StepStatus } from "@/lib/agents/types";
@@ -41,6 +41,7 @@ export const STATUS_META: Record<
 > = {
   queued: { label: "Queued", color: "var(--text-muted)", icon: Clock },
   running: { label: "Running", color: "var(--accent-primary)", icon: LoaderCircle, spin: true },
+  awaiting: { label: "Needs approval", color: "var(--warning)", icon: ShieldQuestion },
   succeeded: { label: "Succeeded", color: "var(--success)", icon: Check },
   failed: { label: "Failed", color: "var(--danger)", icon: CircleAlert },
   cancelled: { label: "Cancelled", color: "var(--warning)", icon: Ban },

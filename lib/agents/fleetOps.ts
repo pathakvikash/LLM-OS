@@ -11,6 +11,8 @@ export interface FleetOps {
   updateAgent: (id: string, patch: Partial<AgentDefinition>) => void;
   setFleetPrompt: (prompt: string) => void;
   getFleetPrompt: () => string;
+  /** Starts a run on another agent; returns its id. */
+  delegate: (agentId: string, task: string, parentRunId?: string) => string | null;
 }
 
 let ops: FleetOps | null = null;

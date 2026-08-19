@@ -1,4 +1,7 @@
-export type RunStatus = "queued" | "running" | "succeeded" | "failed" | "cancelled";
+export type RunStatus = "queued" | "running" | "awaiting" | "succeeded" | "failed" | "cancelled";
+
+/** How a run's steps were decided. */
+export type RunMode = "rules" | "model";
 
 export type StepStatus = "pending" | "running" | "done" | "failed" | "skipped";
 
@@ -86,6 +89,12 @@ export interface AgentRun {
   /** The composed brief this run was planned against — fleet + agent + grants. */
   systemPrompt: string;
   status: RunStatus;
+  /** "model" runs decide their steps as they go; "rules" runs plan up front. */
+  mode?: RunMode;
+  /** The model that drove it, when one did. */
+  modelId?: string;
+  /** Set when a model-driven run spawned this one. */
+  parentRunId?: string;
   trigger: TriggerKind;
   createdAt: number;
   startedAt?: number;
@@ -99,6 +108,15 @@ export interface AgentRun {
   error?: string;
   /** Small facts a finished run leaves behind, so a follow-up can say "it". */
   outputVars?: Record<string, string>;
+}
+
+/** A write a model wants to make, waiting on the operator. */
+export interface PendingApproval {
+  runId: string;
+  actionId: string;
+  summary: string;
+  params: Record<string, string>;
+  askedAt: number;
 }
 
 export interface ChatMessage {

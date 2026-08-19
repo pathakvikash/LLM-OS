@@ -75,7 +75,9 @@ export function routeMessage(
   /** Installed app names, so a generalist can tell whether it could act. */
   appNames: string[] = [],
   /** Facts from earlier runs, so "in it" counts as something a generalist can do. */
-  contextVars?: Record<string, string>
+  contextVars?: Record<string, string>,
+  /** With a model configured a generalist can attempt anything, not only what the rules parse. */
+  modelAvailable = false
 ): Routing {
   const enabled = agents.filter((a) => a.enabled);
   if (enabled.length === 0) return { assignments: [], unroutable: [message] };
@@ -89,7 +91,7 @@ export function routeMessage(
     const candidate = bestAgentFor(clause, enabled, skills, assignments.at(-1)?.agent.id);
     if (!candidate) {
       // No recipe fits — hand it to a generalist if one can actually do it.
-      const generalist = generalists.find(() => canInterpret(clause, { appNames, vars: contextVars }));
+      const generalist = generalists.find(() => modelAvailable || canInterpret(clause, { appNames, vars: contextVars }));
       if (generalist) {
         const previous = assignments.at(-1);
         if (previous && previous.agent.id === generalist.id) previous.task = `${previous.task} and ${clause}`;
@@ -112,7 +114,7 @@ export function routeMessage(
   if (assignments.length === 0) {
     const whole = bestAgentFor(message, enabled, skills);
     if (whole) return { assignments: [{ agent: whole.agent, task: message.trim(), skill: whole.skill }], unroutable: [] };
-    const generalist = generalists.find(() => canInterpret(message, { appNames, vars: contextVars }));
+    const generalist = generalists.find(() => modelAvailable || canInterpret(message, { appNames, vars: contextVars }));
     if (generalist) {
       return { assignments: [{ agent: generalist, task: message.trim(), skill: DIRECT_SKILL }], unroutable: [] };
     }

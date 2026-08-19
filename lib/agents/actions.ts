@@ -50,6 +50,8 @@ export interface ActionResult {
 /** Who the run belongs to; only actions that surface in the UI need it. */
 export interface ActionMeta {
   agentName: string;
+  /** The run making the call, so delegated work can be traced back to it. */
+  runId?: string;
 }
 
 export interface ActionSpec {
@@ -547,6 +549,29 @@ export const ACTIONS: ActionSpec[] = [
         summary: `Created agent “${clean}” — edit its prompt and skills in the Agents tab`,
         vars: { createdAgent: clean, createdAgentId: id },
       };
+    },
+  },
+  {
+    id: "fleet.delegate",
+    label: "Delegate to an agent",
+    connectorId: "fleet",
+    scope: "write",
+    description:
+      "Hand a task to another agent on the roster. Use it when the work belongs to a specialist rather than you.",
+    params: [
+      { name: "agent", label: "Agent to hand it to" },
+      { name: "task", label: "What they should do" },
+    ],
+    describe: (p) => `Delegate to ${p.agent || "an agent"}: ${p.task || ""}`,
+    run: async ({ agent, task }, meta) => {
+      const ops = fleetOps();
+      const target = ops.listAgents().find((a) => a.name.toLowerCase() === (agent ?? "").trim().toLowerCase());
+      if (!target) throw new Error(`No agent called “${agent}”`);
+      if (!target.enabled) throw new Error(`${target.name} is disabled`);
+      if (target.name === meta?.agentName) throw new Error("An agent cannot delegate to itself");
+      const id = ops.delegate(target.id, (task ?? "").trim(), meta?.runId);
+      if (!id) throw new Error(`${target.name} could not take that task`);
+      return { summary: `Handed to ${target.name}: ${task}`, vars: { delegatedTo: target.name, delegatedRunId: id } };
     },
   },
   {

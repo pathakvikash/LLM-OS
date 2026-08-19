@@ -16,6 +16,7 @@ import { cancelRunState, isActive, planRun } from "@/lib/agents/engine";
 import { BUILTIN_SKILLS, extractVars, planTask } from "@/lib/agents/skills";
 import { interpret } from "@/lib/agents/interpreter";
 import { setFleetOps } from "@/lib/agents/fleetOps";
+import { isLlmReady } from "@/stores/useLlmStore";
 import { DEFAULT_SYSTEM_PROMPT, composeSystemPrompt } from "@/lib/agents/prompt";
 import { routeMessage } from "@/lib/agents/orchestrator";
 import { converse, stripPleasantries, unknownReply } from "@/lib/agents/conversation";
@@ -26,6 +27,7 @@ import type {
   ChatMessage,
   ChatSession,
   Connector,
+  PendingApproval,
   Skill,
   TriggerKind,
 } from "@/lib/agents/types";
@@ -54,6 +56,10 @@ interface AgentStoreState {
   runs: AgentRun[];
   /** Fleet-wide brief every agent inherits, composed into each run's prompt. */
   systemPrompt: string;
+  /** Writes a model wants to make, keyed by run. */
+  pendingApprovals: PendingApproval[];
+  approvals: Record<string, "approved" | "denied">;
+
   /** Orchestrator conversations. Replies are rendered from the runs they start. */
   sessions: ChatSession[];
   activeSessionId: string | null;
@@ -80,6 +86,10 @@ interface AgentStoreState {
 
   setSystemPrompt: (prompt: string) => void;
   resetSystemPrompt: () => void;
+
+  requestApproval: (approval: PendingApproval) => void;
+  resolveApproval: (runId: string, decision: "approved" | "denied") => void;
+  clearApproval: (runId: string) => void;
 
   setConnector: (id: string, patch: Partial<Connector>) => void;
   noteConnectorUse: (id: string, ts: number) => void;
@@ -112,6 +122,20 @@ interface AgentStoreState {
  * A generalist agent has no recipe: its plan is assembled from the instruction
  * and wrapped as a one-off skill so everything downstream is unchanged.
  */
+/** A plan with no steps: the model fills it in as it works. */
+function emptyPlan(): Skill {
+  return {
+    id: "model",
+    name: "Model plan",
+    description: "Decided by the model as it works.",
+    iconKey: "sparkles",
+    triggers: [],
+    steps: [],
+    enabled: true,
+    createdAt: 0,
+  };
+}
+
 function interpretedPlan(task: string, appNames: string[], vars: Record<string, string>) {
   const steps = interpret(task, { appNames, vars });
   if (steps.length === 0) return { steps: [], unhandled: [task] };
@@ -139,6 +163,8 @@ export const useAgentStore = create<AgentStoreState>()(
       systemPrompt: DEFAULT_SYSTEM_PROMPT,
       sessions: [],
       activeSessionId: null,
+      pendingApprovals: [],
+      approvals: {},
       maxConcurrent: 2,
       fleetPaused: false,
       hasHydrated: false,
@@ -233,6 +259,24 @@ export const useAgentStore = create<AgentStoreState>()(
       setSystemPrompt: (systemPrompt) => set({ systemPrompt }),
       resetSystemPrompt: () => set({ systemPrompt: DEFAULT_SYSTEM_PROMPT }),
 
+      requestApproval: (approval) =>
+        set((s) => ({
+          pendingApprovals: [...s.pendingApprovals.filter((a) => a.runId !== approval.runId), approval],
+        })),
+
+      resolveApproval: (runId, decision) =>
+        set((s) => ({
+          approvals: { ...s.approvals, [runId]: decision },
+          pendingApprovals: s.pendingApprovals.filter((a) => a.runId !== runId),
+        })),
+
+      clearApproval: (runId) =>
+        set((s) => {
+          const approvals = { ...s.approvals };
+          delete approvals[runId];
+          return { approvals, pendingApprovals: s.pendingApprovals.filter((a) => a.runId !== runId) };
+        }),
+
       setConnector: (id, patch) =>
         set((s) => ({
           connectors: s.connectors.map((c) => (c.id === id ? { ...c, ...patch, id: c.id } : c)),
@@ -269,7 +313,12 @@ export const useAgentStore = create<AgentStoreState>()(
           : agent.planner === "interpreter"
             ? interpretedPlan(task, appNames, baseVars)
             : planTask(task, granted, appNames, now, skills);
-        if (plan.steps.length === 0) return null;
+
+        // A model decides its own steps, so an empty rule plan is not a dead end
+        // when one is configured — it is exactly the case a model is there for.
+        const modelWillPlan = isLlmReady();
+        if (plan.steps.length === 0 && !modelWillPlan) return null;
+        if (plan.steps.length === 0) plan.steps = [{ skill: emptyPlan(), clause: task, vars: baseVars }];
 
         // Clause-scoped vars still need the agent identity available.
         const planned = plan.steps.map((step) => ({ ...step, vars: { ...step.vars, ...identity } }));
@@ -382,7 +431,7 @@ export const useAgentStore = create<AgentStoreState>()(
         );
         const contextVars = previous?.outputVars;
 
-        const routing = routeMessage(request || task, agents, skills, context.appNames, contextVars);
+        const routing = routeMessage(request || task, agents, skills, context.appNames, contextVars, isLlmReady());
 
         if (routing.assignments.length === 0) {
           const reply = converse(task, context);
@@ -514,4 +563,9 @@ setFleetOps({
   updateAgent: (id, patch) => useAgentStore.getState().updateAgent(id, patch),
   setFleetPrompt: (prompt) => useAgentStore.getState().setSystemPrompt(prompt),
   getFleetPrompt: () => useAgentStore.getState().systemPrompt,
+  delegate: (agentId, task, parentRunId) => {
+    const id = useAgentStore.getState().launchRun({ agentId, task });
+    if (id && parentRunId) useAgentStore.getState().updateRun(id, (run) => ({ ...run, parentRunId }));
+    return id;
+  },
 });

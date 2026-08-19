@@ -1,11 +1,11 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { ArrowUp, Ban, Check, MessagesSquare, Pencil, Plus, Trash2 } from "lucide-react";
+import { ArrowUp, Ban, Check, CornerDownRight, MessagesSquare, Pencil, Plus, ShieldQuestion, Trash2 } from "lucide-react";
 import { isActive, runProgress } from "@/lib/agents/engine";
 import { routeMessage } from "@/lib/agents/orchestrator";
 import { stripPleasantries } from "@/lib/agents/conversation";
-import type { AgentDefinition, AgentRun, ChatSession, Skill } from "@/lib/agents/types";
+import type { AgentDefinition, AgentRun, ChatSession, PendingApproval, Skill } from "@/lib/agents/types";
 import { formatClockTime, formatDuration, formatRelativeTime } from "@/lib/utils/format";
 import { runElapsedMs } from "@/lib/agents/engine";
 import { AgentGlyph, Button, Chip, EmptyState, Meter, StatusBadge, STATUS_META, inputClass, inputStyle } from "./parts";
@@ -14,13 +14,20 @@ import { AgentGlyph, Button, Chip, EmptyState, Meter, StatusBadge, STATUS_META, 
 function RunCard({
   run,
   now,
+  delegated,
+  approval,
   onOpen,
   onCancel,
+  onDecide,
 }: {
   run: AgentRun;
   now: number;
+  /** Runs this one handed off, rendered beneath it. */
+  delegated?: AgentRun[];
+  approval?: PendingApproval;
   onOpen: () => void;
   onCancel: () => void;
+  onDecide?: (decision: "approved" | "denied") => void;
 }) {
   const tone = STATUS_META[run.status].color;
   const done = run.steps.filter((s) => s.status !== "pending" && s.status !== "running").length;
@@ -36,6 +43,11 @@ function RunCard({
           {run.agentName}
         </button>
         <Chip tone="var(--accent-secondary)">{run.skillName}</Chip>
+        {run.modelId && (
+          <Chip tone="var(--accent-primary)" title="Planned by a model rather than the built-in rules">
+            {run.modelId}
+          </Chip>
+        )}
         <span className="ml-auto flex items-center gap-1.5">
           <span className="text-[10px] tabular-nums" style={{ color: "var(--text-muted)" }}>
             {done}/{run.steps.length} · {formatDuration(runElapsedMs(run, now))}
@@ -78,10 +90,49 @@ function RunCard({
         ))}
       </ol>
 
+      {approval && onDecide && (
+        <div
+          className="mt-2 rounded-(--radius-sm) border p-2"
+          style={{
+            borderColor: "color-mix(in srgb, var(--warning) 45%, transparent)",
+            background: "color-mix(in srgb, var(--warning) 10%, transparent)",
+          }}
+        >
+          <div className="flex items-center gap-1.5 text-[11px]">
+            <ShieldQuestion size={12} style={{ color: "var(--warning)" }} />
+            <span style={{ color: "var(--text-primary)" }}>{approval.summary}</span>
+          </div>
+          <div className="mt-1.5 flex gap-1.5">
+            <Button variant="primary" onClick={() => onDecide("approved")}>
+              Allow
+            </Button>
+            <Button onClick={() => onDecide("denied")}>Decline</Button>
+          </div>
+        </div>
+      )}
+
       {run.error && (
         <p className="mt-1.5 text-[11px]" style={{ color: "var(--danger)" }}>
           {run.error}
         </p>
+      )}
+
+      {delegated && delegated.length > 0 && (
+        <div className="mt-2 space-y-1.5 border-l pl-2" style={{ borderColor: "var(--glass-border)" }}>
+          {delegated.map((child) => (
+            <div key={child.id} className="flex items-center gap-1.5 text-[11px]">
+              <CornerDownRight size={11} style={{ color: "var(--text-muted)" }} />
+              <AgentGlyph iconKey={child.agentIconKey} color={child.agentColor} size={11} />
+              <span className="font-medium">{child.agentName}</span>
+              <span className="min-w-0 truncate" style={{ color: "var(--text-secondary)" }}>
+                {child.task}
+              </span>
+              <span className="ml-auto shrink-0">
+                <StatusBadge status={child.status} compact />
+              </span>
+            </div>
+          ))}
+        </div>
       )}
     </div>
   );
@@ -111,7 +162,10 @@ export default function ChatPane({
   agents,
   skills,
   now,
+  pendingApprovals,
+  modelReady,
   onSend,
+  onDecideApproval,
   onNewSession,
   onSelectSession,
   onRenameSession,
@@ -126,7 +180,11 @@ export default function ChatPane({
   agents: AgentDefinition[];
   skills: Skill[];
   now: number;
+  pendingApprovals: PendingApproval[];
+  /** Whether a model is configured, which widens what can be attempted. */
+  modelReady: boolean;
   onSend: (text: string) => void;
+  onDecideApproval: (runId: string, decision: "approved" | "denied") => void;
   onNewSession: () => void;
   onSelectSession: (id: string) => void;
   onRenameSession: (id: string, title: string) => void;
@@ -150,7 +208,7 @@ export default function ChatPane({
 
   // Preview of where the message would go, shown under the composer as you type.
   const request = stripPleasantries(draft.trim());
-  const preview = draft.trim() ? routeMessage(request || draft.trim(), agents, skills, appNames) : null;
+  const preview = draft.trim() ? routeMessage(request || draft.trim(), agents, skills, appNames, undefined, modelReady) : null;
   const routed = Boolean(request) && (preview?.assignments.length ?? 0) > 0;
 
   function send() {
@@ -303,8 +361,11 @@ export default function ChatPane({
                         key={run.id}
                         run={run}
                         now={now}
+                        delegated={runs.filter((r) => r.parentRunId === run.id)}
+                        approval={pendingApprovals.find((a) => a.runId === run.id)}
                         onOpen={() => onOpenRun(run.id)}
                         onCancel={() => onCancelRun(run.id)}
+                        onDecide={(decision) => onDecideApproval(run.id, decision)}
                       />
                     ))}
                     {reply && (
